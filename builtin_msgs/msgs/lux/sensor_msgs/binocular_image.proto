@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package lux.sensor_msgs;
+
+import "lux/sensor_msgs/image.proto";
+
+message BinocularImage {
+	optional Image	right_image = 6;
+	optional Image	left_image  = 7;
+}
