@@ -71,17 +71,15 @@ function(component_proto_include_directories)
     endif()
 endfunction()
 
-# ARGV0				Component
 # KEY1				COMPONENTS		<components...>
 # KEY2				PROTOS			<protobuf files...>
 # KEY3				IMPORT_DIRS		<paths...>
 # KEY4				EXPORT_MACRO
 # KEY5				PROTOC_OUT_DIR
-# KEY6				LANGUAGE
-function(component_generate_protos)
-	set(_options)
-	set(_one_value_arguments	LANGUAGE	PROTOC_OUT_DIR	EXPORT_MACRO)
-	set(_multi_value_arguments	COMPONENTS	PROTOS			IMPORT_DIRS)
+function(components_generate_protos)
+	set(_options				)
+	set(_one_value_arguments	PROTOC_OUT_DIR	EXPORT_MACRO RESULT_OUTPUT SOURCE_FILES_OUTPUT)
+	set(_multi_value_arguments	COMPONENTS	PROTOS	IMPORT_DIRS INCLUDE_HEADERS)
 
 	cmake_parse_arguments(
 		ARGS
@@ -90,10 +88,6 @@ function(component_generate_protos)
 		"${_multi_value_arguments}"
 		${ARGN}
 	)
-
-	if(NOT ARGS_LANGUAGE)
-		set(ARGS_LANGUAGE cpp)
-	endif()
 
 	if(NOT ARGS_PROTOC_OUT_DIR)
 		set(ARGS_PROTOC_OUT_DIR ${CMAKE_BINARY_DIR}/protogen)
@@ -128,12 +122,61 @@ function(component_generate_protos)
 		list(PROTO_FILES APPEND ${ARGS_PROTOS})
 	endif()
 
-	protobuf_generate(
-		TARGET 			${ARGV0}
-		LANGUAGE 		${ARGS_LANGUAGE}
-		EXPORT_MACRO	${ARGS_EXPORT_MACRO}
-		PROTOS			${PROTO_FILES}
-		IMPORT_DIRS		${IMPORT_DIRECTORIES}
-		PROTOC_OUT_DIR	${ARGS_PROTOC_OUT_DIR}
+	if(NOT EXISTS ${ARGS_PROTOC_OUT_DIR})
+		file(MAKE_DIRECTORY ${ARGS_PROTOC_OUT_DIR})
+	endif()
+
+	if(ARGS_EXPORT_MACRO)
+		set(COMPILER_ARGUMENTS --cpp_out=dllexport_decl=${ARGS_EXPORT_MACRO}:${ARGS_PROTOC_OUT_DIR})
+	else()
+		set(COMPILER_ARGUMENTS --cpp_out=${ARGS_PROTOC_OUT_DIR})
+	endif()
+	foreach(dir ${IMPORT_DIRECTORIES})
+		list(APPEND COMPILER_ARGUMENTS -I=${dir})
+	endforeach()
+
+	foreach(proto_file ${PROTO_FILES})
+		list(APPEND COMPILER_ARGUMENTS ${proto_file})
+	endforeach()
+
+	execute_process(
+		COMMAND				${Protobuf_PROTOC_EXECUTABLE} ${COMPILER_ARGUMENTS}
+		RESULT_VARIABLE		OUTPUT
 	)
+
+	if(ARGS_RESULT_OUTPUT)
+		set(${ARGS_RESULT_OUTPUT} ${OUTPUT} PARENT_SCOPE)
+	endif()
+
+	if(ARGS_SOURCE_FILES_OUTPUT)
+		file(GLOB_RECURSE GENERATED_SOURCE_FILES 
+			LIST_DIRECTORIES false 
+			"${ARGS_PROTOC_OUT_DIR}/*.cc"
+		)
+
+		list(REMOVE_DUPLICATES GENERATED_SOURCE_FILES)
+		set(${ARGS_SOURCE_FILES_OUTPUT} ${GENERATED_SOURCE_FILES} PARENT_SCOPE)
+	endif()
+
+	if(ARGS_INCLUDE_HEADERS)
+		# build command
+		set(INCLUDE_COMMAND "// @@protoc_insertion_point(includes)")
+		foreach(header ${ARGS_INCLUDE_HEADERS})
+			set(INCLUDE_COMMAND "${INCLUDE_COMMAND}\n#include <${header}>")
+		endforeach()
+
+		# find header files
+		file(GLOB_RECURSE GENERATED_HEADER_FILES 
+			LIST_DIRECTORIES false 
+			"${ARGS_PROTOC_OUT_DIR}/*.h"
+		)
+		list(REMOVE_DUPLICATES GENERATED_HEADER_FILES)
+
+		# replace string
+		foreach(header ${GENERATED_HEADER_FILES})
+			file(READ ${header} FILE_CONTENTS)
+			string(REPLACE "// @@protoc_insertion_point(includes)" "${INCLUDE_COMMAND}" FILE_CONTENTS "${FILE_CONTENTS}")
+			file(WRITE ${header} "${FILE_CONTENTS}")
+		endforeach()
+	endif()   
 endfunction()

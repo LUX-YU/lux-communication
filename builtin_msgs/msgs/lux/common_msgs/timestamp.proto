@@ -4,5 +4,5 @@ package lux.common_msgs;
 
 message Timestamp {
     optional uint64 secs  = 1;
-    optional uint32 nsecs = 2;
+    optional uint64 nsecs = 2;
 }
