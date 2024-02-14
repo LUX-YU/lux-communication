@@ -77,9 +77,20 @@ endfunction()
 # KEY4				EXPORT_MACRO
 # KEY5				PROTOC_OUT_DIR
 function(components_generate_protos)
-	set(_options				)
-	set(_one_value_arguments	PROTOC_OUT_DIR	EXPORT_MACRO RESULT_OUTPUT SOURCE_FILES_OUTPUT)
-	set(_multi_value_arguments	COMPONENTS	PROTOS	IMPORT_DIRS INCLUDE_HEADERS)
+	set(_options)
+	set(_one_value_arguments
+		PROTOC_OUT_DIR
+		EXPORT_MACRO
+		RESULT_OUTPUT
+		SOURCE_FILES_OUTPUT
+		HEADER_FILES_OUTPUT
+	)
+	set(_multi_value_arguments	
+		COMPONENTS	
+		PROTOS	
+		IMPORT_DIRS 
+		INCLUDE_HEADERS
+	)
 
 	cmake_parse_arguments(
 		ARGS
@@ -178,5 +189,9 @@ function(components_generate_protos)
 			string(REPLACE "// @@protoc_insertion_point(includes)" "${INCLUDE_COMMAND}" FILE_CONTENTS "${FILE_CONTENTS}")
 			file(WRITE ${header} "${FILE_CONTENTS}")
 		endforeach()
-	endif()   
+		
+		if(ARGS_HEADER_FILES_OUTPUT)
+			set(${ARGS_HEADER_FILES_OUTPUT} ${GENERATED_HEADER_FILES} PARENT_SCOPE)
+		endif()
+	endif()
 endfunction()

@@ -1,8 +1,8 @@
 find_package(Protobuf REQUIRED)
 
 add_interface_component(
-	COMPONENT_NAME protobuf
-	NAMESPACE lux::communication
+	COMPONENT_NAME 	protobuf
+	NAMESPACE 		lux::communication
 )
 
 component_add_cmake_scripts(
