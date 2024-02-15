@@ -14,3 +14,9 @@ component_add_transitive_commands(
 	protobuf
 	"find_package(Protobuf REQUIRED)"
 )
+
+target_link_libraries(
+	protobuf
+	INTERFACE
+	protobuf::libprotobuf
+)

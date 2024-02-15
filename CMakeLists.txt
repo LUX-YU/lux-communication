@@ -11,9 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(lux-cmake-toolset CONFIG REQUIRED)
 
 generate_visibility_header(
-    ENABLE_MACRO_NAME               LUX_COMMUNICATION_LIBRARY
-    PUBLIC_MACRO_NAME               LUX_COMMUNICATION_PUBLIC
-    GENERATE_FILE_PATH              lux/communication/visibility.h
+    ENABLE_MACRO_NAME  LUX_COMMUNICATION_LIBRARY
+    PUBLIC_MACRO_NAME  LUX_COMMUNICATION_PUBLIC
+    GENERATE_FILE_PATH lux/communication/visibility.h
 )
 
 add_subdirectory(protobuf)

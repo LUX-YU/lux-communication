@@ -76,7 +76,7 @@ endfunction()
 # KEY3				IMPORT_DIRS		<paths...>
 # KEY4				EXPORT_MACRO
 # KEY5				PROTOC_OUT_DIR
-function(components_generate_protos)
+function(generate_protos)
 	set(_options)
 	set(_one_value_arguments
 		PROTOC_OUT_DIR
@@ -130,7 +130,7 @@ function(components_generate_protos)
 	endif()
 
 	if(ARGS_PROTOS)
-		list(PROTO_FILES APPEND ${ARGS_PROTOS})
+		list(APPEND PROTO_FILES ${ARGS_PROTOS})
 	endif()
 
 	if(NOT EXISTS ${ARGS_PROTOC_OUT_DIR})
@@ -149,7 +149,7 @@ function(components_generate_protos)
 	foreach(proto_file ${PROTO_FILES})
 		list(APPEND COMPILER_ARGUMENTS ${proto_file})
 	endforeach()
-
+	
 	execute_process(
 		COMMAND				${Protobuf_PROTOC_EXECUTABLE} ${COMPILER_ARGUMENTS}
 		RESULT_VARIABLE		OUTPUT
