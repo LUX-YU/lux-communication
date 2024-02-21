@@ -3,8 +3,12 @@ include_component_cmake_scripts(lux::communication::protobuf)
 set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/protogen)
 set(BUILTIN_MSGS_PROTO_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/common_msgs/timestamp.proto
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/sensor_msgs/binocular_image.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/geometry_msgs/quaternion.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/geometry_msgs/point.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/geometry_msgs/pose.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/sensor_msgs/image.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/sensor_msgs/image_group.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/sensor_msgs/imu.proto
 )
 
 generate_protos(

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package lux.sensor_msgs;
+
+import "lux/sensor_msgs/image.proto";
+
+message ImageGroup {
+	repeated Image images = 6;
+}
