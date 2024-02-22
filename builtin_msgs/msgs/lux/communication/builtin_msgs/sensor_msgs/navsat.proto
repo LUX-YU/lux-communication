@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.sensor_msgs;
+
+import "lux/communication/builtin_msgs/common_msgs/matrix3.proto";
+
+message Navsat{
+	enum Status {
+        NO_FIX      = 0;
+        FIX         = 1;
+        SBAS_FIX    = 2;
+        GBAS_FIX    = 3;
+    }
+
+    enum Service{
+        UNKNOWN     = 0;
+        GPS         = 1;
+        GLONASS     = 2;
+        BeiDou      = 3;
+        GALILEO     = 4;
+    };
+
+    optional lux.communication.builtin_msgs.common_msgs.Matrix3 position_covariance = 6;
+
+    double  latitude    = 7;
+    double  longitude   = 8;
+    double  altitude    = 9;
+
+    Status  status      = 10;
+    Service service     = 11;
+}

@@ -1,0 +1,9 @@
+
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.common_msgs;
+
+message VectorN{
+	uint32 len = 1;
+	repeated double data = 3 [packed=true];
+}

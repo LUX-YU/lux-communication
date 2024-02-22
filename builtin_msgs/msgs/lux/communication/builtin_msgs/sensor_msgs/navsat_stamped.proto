@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.sensor_msgs;
+
+import "lux/communication/builtin_msgs/common_msgs/timestamp.proto";
+import "lux/communication/builtin_msgs/sensor_msgs/navsat.proto";
+
+message NavsatStamped{
+    optional lux.communication.builtin_msgs.common_msgs.Timestamp timestamp = 1;
+    optional Navsat navsat = 2;
+}

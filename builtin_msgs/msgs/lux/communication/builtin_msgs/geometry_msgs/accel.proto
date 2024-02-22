@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.geometry_msgs;
+
+import "lux/communication/builtin_msgs/common_msgs/vector3.proto";
+
+message Accel{
+	optional lux.communication.builtin_msgs.common_msgs.Vector3 linear  = 1;
+	optional lux.communication.builtin_msgs.common_msgs.Vector3 angular = 2;
+}

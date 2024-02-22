@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.common_msgs;
+
+message MatrixN{
+  uint32 rows = 1;
+  uint32 cols = 2;
+  repeated double data = 3 [packed=true];
+}

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.sensor_msgs;
+
+import "lux/communication/builtin_msgs/sensor_msgs/image.proto";
+
+message ImageGroup {
+	repeated Image images = 6;
+}

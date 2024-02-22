@@ -1,14 +1,35 @@
-include_component_cmake_scripts(lux::communication::protobuf)
+find_package(Stb QUIET)
+if(NOT Stb_FOUND)
+    find_path(Stb_INCLUDE_DIR stb_image.h REQUIRED 
+        HINTS
+            /usr/include 
+            /usr/include/stb
+            /usr/local
+            /usr/local/include/stb
+    )
+endif()
 
+include_component_cmake_scripts(lux::communication::protobuf)
 set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/protogen)
 set(BUILTIN_MSGS_PROTO_FILES
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/common_msgs/timestamp.proto
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/geometry_msgs/quaternion.proto
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/geometry_msgs/point.proto
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/geometry_msgs/pose.proto
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/sensor_msgs/image.proto
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/sensor_msgs/image_group.proto
-	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/sensor_msgs/imu.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/timestamp.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/matrix3.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/matrixn.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vector3.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vectorn.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/quaternion.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/point.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/pose.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/accel.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/twist.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/image.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/image_stamped.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/image_group.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/image_group_stamped.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/imu.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/imu_stamped.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/navsat.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/navsat_stamped.proto
 )
 
 generate_protos(
@@ -24,6 +45,8 @@ add_component(
 	COMPONENT_NAME	builtin_msgs
 	NAMESPACE		lux::communication
 	SOURCE_FILES	${PROTO_SOURCES_FILES}
+					${CMAKE_CURRENT_SOURCE_DIR}/src/load_image.cpp
+					${CMAKE_CURRENT_SOURCE_DIR}/src/timestamp_tools.cpp
 )
 
 component_include_directories(
@@ -31,7 +54,10 @@ component_include_directories(
 	BUILD_TIME_SHARED
 		${PROTO_GEN_DIR}
 	BUILD_TIME_EXPORT
+		${CMAKE_CURRENT_SOURCE_DIR}/include
 		${LUX_GENERATE_HEADER_DIR}
+	PRIVATE
+        ${Stb_INCLUDE_DIR}
 )
 
 component_add_internal_dependencies(
@@ -53,6 +79,7 @@ target_compile_definitions(
 	LUX_COMMUNICATION_LIBRARY
 )
 
+# TODO simplify this
 install(
 	DIRECTORY	${PROTO_GEN_DIR}/lux
 	DESTINATION	${CMAKE_INSTALL_PREFIX}/include

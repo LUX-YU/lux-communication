@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.sensor_msgs;
+
+import "lux/communication/builtin_msgs/common_msgs/timestamp.proto";
+import "lux/communication/builtin_msgs/sensor_msgs/image.proto";
+
+message ImageStamped{
+    optional lux.communication.builtin_msgs.common_msgs.Timestamp timestamp = 6;
+    optional Image image = 7;
+}

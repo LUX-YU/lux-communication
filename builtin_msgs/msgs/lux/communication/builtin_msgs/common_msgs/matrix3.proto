@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.common_msgs;
+
+message Matrix3{
+	optional double x1 = 1;
+	optional double y1 = 2;
+	optional double z1 = 3;
+
+	optional double x2 = 4;
+	optional double y2 = 5;
+	optional double z2 = 6;
+
+	optional double x3 = 7;
+	optional double y3 = 8;
+	optional double z3 = 9;
+}

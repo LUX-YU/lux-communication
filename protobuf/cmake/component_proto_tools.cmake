@@ -153,6 +153,7 @@ function(generate_protos)
 	execute_process(
 		COMMAND				${Protobuf_PROTOC_EXECUTABLE} ${COMPILER_ARGUMENTS}
 		RESULT_VARIABLE		OUTPUT
+		COMMAND_ECHO		STDOUT
 	)
 
 	if(ARGS_RESULT_OUTPUT)

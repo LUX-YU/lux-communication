@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package lux.common_msgs;
+package lux.communication.builtin_msgs.common_msgs;
 
 message Timestamp {
     optional uint64 secs  = 1;

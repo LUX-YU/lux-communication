@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package lux.geometry_msgs;
+package lux.communication.builtin_msgs.common_msgs;
 
-message Point{
+message Vector3{
 	optional double x = 1;
 	optional double y = 2;
 	optional double z = 3;
