@@ -33,7 +33,7 @@ namespace lux::communication::builtin_msgs
 
 	bool load_image(sensor_msgs::ImageStamped& image_stamped, const char* path, uint64_t timestamp)
 	{
-		set_timestamp(*image_stamped.mutable_timestamp(), timestamp);
+		timestamp_from_ns(*image_stamped.mutable_timestamp(), timestamp);
 		return load_image(*image_stamped.mutable_image(), path);
 	}
 
