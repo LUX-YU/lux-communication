@@ -10,8 +10,8 @@ message Imu{
     optional lux.communication.builtin_msgs.geometry_msgs.Quaternion  orientation = 6;
     optional lux.communication.builtin_msgs.common_msgs.Matrix3       orientation_covariance = 7;
 
-    optional lux.communication.builtin_msgs.common_msgs.Vector3       angular_acceleration = 8;
-    optional lux.communication.builtin_msgs.common_msgs.Matrix3       angular_acceleration_covariance = 9;
+    optional lux.communication.builtin_msgs.common_msgs.Vector3       angular_velocity = 8;
+    optional lux.communication.builtin_msgs.common_msgs.Matrix3       angular_velocity_covariance = 9;
 
     optional lux.communication.builtin_msgs.common_msgs.Vector3       linear_acceleration = 10;
     optional lux.communication.builtin_msgs.common_msgs.Matrix3       linear_acceleration_covariance = 11;

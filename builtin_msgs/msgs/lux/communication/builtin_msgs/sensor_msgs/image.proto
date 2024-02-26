@@ -3,9 +3,9 @@ syntax = "proto3";
 package lux.communication.builtin_msgs.sensor_msgs;
 
 message Image {
-    optional int32 width     = 7;
-    optional int32 height    = 8;
-    optional int32 channels  = 9;
-    optional int32 type      = 10;
-    optional bytes data      = 11;
+    optional int32 width     = 1;
+    optional int32 height    = 2;
+    optional int32 channels  = 3;
+    optional int32 type      = 4;
+    optional bytes data      = 5;
 }
