@@ -1,4 +1,5 @@
-find_package(Stb QUIET)
+find_package(Stb	QUIET)
+find_package(Eigen3 CONFIG REQUIRED)
 if(NOT Stb_FOUND)
     find_path(Stb_INCLUDE_DIR stb_image.h REQUIRED 
         HINTS
@@ -65,6 +66,12 @@ component_add_internal_dependencies(
 	lux::communication::protobuf
 )
 
+target_link_libraries(
+	builtin_msgs
+	PUBLIC
+	Eigen3::Eigen
+)
+
 component_proto_include_directories(
 	builtin_msgs
 	BUILD_TIME
@@ -78,6 +85,11 @@ target_compile_definitions(
 	PRIVATE
 	LUX_COMMUNICATION_LIBRARY
 )
+
+set(ENABLE_BUILTIN_MSGS_TEST ON CACHE BOOL  "Enable builtin message test")
+if(ENABLE_BUILTIN_MSGS_TEST)
+	add_subdirectory(test)
+endif()
 
 # TODO simplify this
 install(
