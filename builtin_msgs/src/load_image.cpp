@@ -31,7 +31,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		}
 	}
 
-	ImageS::ImageS(int width, int height, int channels, void* data)
+	ImageS::ImageS(int width, int height, int channels, const void* data)
 	{
 		_width		= width;
 		_height		= height;

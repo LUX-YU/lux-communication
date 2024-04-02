@@ -16,7 +16,8 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 		LUX_COMMUNICATION_PUBLIC ImageS();
 		LUX_COMMUNICATION_PUBLIC ImageS(const char* path);
-		LUX_COMMUNICATION_PUBLIC ImageS(int width, int height, int channels, void* data);
+		// copy
+		LUX_COMMUNICATION_PUBLIC ImageS(int width, int height, int channels, const void* data);
 		LUX_COMMUNICATION_PUBLIC ImageS(const ImageS&);
 		LUX_COMMUNICATION_PUBLIC ImageS& operator=(const ImageS&);
 		LUX_COMMUNICATION_PUBLIC ImageS(ImageS&&) noexcept;
