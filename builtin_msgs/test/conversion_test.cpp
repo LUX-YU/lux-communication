@@ -10,6 +10,10 @@
 #include "lux/communication/builtin_msgs/sensor_msgs/image_stamped.st.h"
 #include "lux/communication/builtin_msgs/sensor_msgs/image_group.st.h"
 #include "lux/communication/builtin_msgs/sensor_msgs/image_group_stamped.st.h"
+#include "lux/communication/builtin_msgs/sensor_msgs/imu.st.h"
+#include "lux/communication/builtin_msgs/sensor_msgs/imu_stamped.st.h"
+#include "lux/communication/builtin_msgs/sensor_msgs/navsat.st.h"
+#include "lux/communication/builtin_msgs/sensor_msgs/navsat_stamped.st.h"
 
 int main()
 {
