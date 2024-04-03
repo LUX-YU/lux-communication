@@ -15,13 +15,16 @@
 #include "lux/communication/builtin_msgs/sensor_msgs/navsat.st.h"
 #include "lux/communication/builtin_msgs/sensor_msgs/navsat_stamped.st.h"
 
+#include "lux/communication/builtin_msgs/pb_st_converter.hpp"
+#include "lux/communication/builtin_msgs/sensor_msgs/image.pb.h"
+
 int main()
 {
 	using namespace ::lux::communication::builtin_msgs::sensor_msgs;
 	ImageS image_st;
 	Image  image_pb;
 
-	lux::communication::pb_st_converter::st2pb(image_st, image_pb);
+	lux::communication::builtin_msgs::pb_st_converter::st2pb(image_st, image_pb);
 
 	return 0;
 }

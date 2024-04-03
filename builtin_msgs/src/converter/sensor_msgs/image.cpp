@@ -1,4 +1,6 @@
+#include "lux/communication/builtin_msgs/pb_st_converter.hpp"
 #include "lux/communication/builtin_msgs/sensor_msgs/image.st.h"
+#include "lux/communication/builtin_msgs/sensor_msgs/image.pb.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -15,27 +17,14 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 	ImageS::ImageS(const char* path)
 	{
-		_data = stbi_load(
-			path,
-			&_width,
-			&_height,
-			&_channels,
-			0
-		);
-
-		if (!_data)
-		{
-			_width	  = 0;
-			_height   = 0;
-			_channels = 0;
-		}
+		load(path);
 	}
 
 	ImageS::ImageS(int width, int height, int channels, const void* data)
 	{
-		_width		= width;
-		_height		= height;
-		_channels	= channels;
+		_width = width;
+		_height = height;
+		_channels = channels;
 		size_t image_size = _width * _height * _channels;
 
 		_data = STBI_MALLOC(image_size);
@@ -44,9 +33,9 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 	ImageS::ImageS(const ImageS& other)
 	{
-		_width		= other._width;
-		_height		= other._height;
-		_channels	= other._channels;
+		_width = other._width;
+		_height = other._height;
+		_channels = other._channels;
 		size_t image_size = _width * _height * _channels;
 
 		_data = STBI_MALLOC(image_size);
@@ -66,9 +55,9 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 			return *this;
 		}
 
-		_width		= other._width;
-		_height		= other._height;
-		_channels	= other._channels;
+		_width = other._width;
+		_height = other._height;
+		_channels = other._channels;
 
 		if (_data)
 		{
@@ -86,15 +75,36 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		{
 			STBI_FREE(_data);
 		}
-		_width		= other._width;
-		_height		= other._height;
-		_channels	= other._channels;
-		_data		= other._data;
+		_width = other._width;
+		_height = other._height;
+		_channels = other._channels;
+		_data = other._data;
 
-		other._width	= 0;
-		other._height	= 0;
+		other._width = 0;
+		other._height = 0;
 		other._channels = 0;
-		other._data		= nullptr;
+		other._data = nullptr;
+	}
+
+	bool ImageS::load(const char* path)
+	{
+		_data = stbi_load(
+			path,
+			&_width,
+			&_height,
+			&_channels,
+			0
+		);
+
+		if (!_data)
+		{
+			_width = 0;
+			_height = 0;
+			_channels = 0;
+			return false;
+		}
+
+		return true;
 	}
 
 	ImageS& ImageS::operator=(ImageS&& other) noexcept
@@ -104,15 +114,15 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 			STBI_FREE(_data);
 		}
 
-		_width	  = other._width;
-		_height	  = other._height;
+		_width = other._width;
+		_height = other._height;
 		_channels = other._channels;
-		_data	  = other._data;
+		_data = other._data;
 
-		other._width	= 0;
-		other._height	= 0;
+		other._width = 0;
+		other._height = 0;
 		other._channels = 0;
-		other._data		= nullptr;
+		other._data = nullptr;
 
 		return *this;
 	}
@@ -153,9 +163,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 	}
 }
 
-#include <lux/communication/pb_st_converter.hpp>
-
-namespace lux::communication
+namespace lux::communication::builtin_msgs
 {
 	namespace
 	{
@@ -175,9 +183,9 @@ namespace lux::communication
 			memcpy(out._data, in.data().data(), image_size);
 			return;
 		}
-		out._width		= in.width();
-		out._height		= in.height();
-		out._channels	= in.channels();
+		out._width = in.width();
+		out._height = in.height();
+		out._channels = in.channels();
 
 		if (out._data)
 		{
@@ -200,7 +208,7 @@ namespace lux::communication
 		out.set_height(in._height);
 		out.set_channels(in._channels);
 		out.mutable_data()->resize(image_size);
-		
+
 		memcpy(out.mutable_data()->data(), in._data, image_size);
 	}
 }

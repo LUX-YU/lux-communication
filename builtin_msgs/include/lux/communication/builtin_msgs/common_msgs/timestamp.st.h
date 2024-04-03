@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <lux/communication/visibility.h>
 
 namespace lux::communication::builtin_msgs::common_msgs
 {
@@ -8,28 +9,7 @@ namespace lux::communication::builtin_msgs::common_msgs
 		uint64_t secs;
 		uint64_t nsecs;
 	};
-}
 
-#include <lux/communication/pb_st_converter.hpp>
-#include "lux/communication/builtin_msgs/common_msgs/timestamp.pb.h"
-
-namespace lux::communication
-{
-	namespace
-	{
-		using PBTimestamp = lux::communication::builtin_msgs::common_msgs::Timestamp;
-		using STTimestamp = lux::communication::builtin_msgs::common_msgs::TimestampS;
-	}
-
-	template<> void pb_st_converter::pb2st(const PBTimestamp& in, STTimestamp& out)
-	{
-		out.secs = in.secs();
-		out.nsecs = in.nsecs();
-	}
-
-	template<> void pb_st_converter::st2pb(const STTimestamp& in, PBTimestamp& out)
-	{
-		out.set_secs(in.secs);
-		out.set_nsecs(in.nsecs);
-	}
+	LUX_COMMUNICATION_PUBLIC void timestamp_from_ns(common_msgs::TimestampS& timestamp, uint64_t time_ns);
+	LUX_COMMUNICATION_PUBLIC uint64_t timestamp_to_ns(const common_msgs::TimestampS& timestamp);
 }

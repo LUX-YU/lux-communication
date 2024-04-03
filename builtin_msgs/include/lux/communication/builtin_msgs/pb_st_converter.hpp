@@ -1,6 +1,6 @@
 #pragma once
 
-namespace lux::communication
+namespace lux::communication::builtin_msgs
 {
 	struct pb_st_converter
 	{

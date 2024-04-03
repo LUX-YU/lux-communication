@@ -1,6 +1,5 @@
 #pragma once
 #include <lux/communication/visibility.h>
-#include "lux/communication/builtin_msgs/sensor_msgs/image.pb.h"
 
 namespace lux::communication
 {
@@ -24,6 +23,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		LUX_COMMUNICATION_PUBLIC ImageS& operator=(ImageS&&) noexcept;
 		LUX_COMMUNICATION_PUBLIC ~ImageS();
 
+		LUX_COMMUNICATION_PUBLIC bool load(const char* path);
 		LUX_COMMUNICATION_PUBLIC bool isLoaded() const;
 
 		LUX_COMMUNICATION_PUBLIC int width() const;

@@ -42,12 +42,32 @@ generate_protos(
 	IMPORT_DIRS			${CMAKE_CURRENT_SOURCE_DIR}/msgs
 )
 
+set(PB_ST_CONVERTER_SRCS
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/timestamp.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/matrix3.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/matrixn.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vector3.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vectorn.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/quaternion.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/point.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/pose.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/accel.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/twist.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/image.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/image_stamped.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/image_group.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/image_group_stamped.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/imu.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/imu_stamped.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/navsat.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/navsat_stamped.cpp
+)
+
 add_component(
 	COMPONENT_NAME	builtin_msgs
 	NAMESPACE		lux::communication
 	SOURCE_FILES	${PROTO_SOURCES_FILES}
-					${CMAKE_CURRENT_SOURCE_DIR}/src/load_image.cpp
-					${CMAKE_CURRENT_SOURCE_DIR}/src/timestamp_tools.cpp
+					${PB_ST_CONVERTER_SRCS}
 )
 
 component_include_directories(
@@ -84,6 +104,11 @@ target_compile_definitions(
 	builtin_msgs
 	PRIVATE
 	LUX_COMMUNICATION_LIBRARY
+)
+
+component_add_transitive_commands(
+	builtin_msgs
+	"find_package(Eigen3 CONFIG REQUIRED)"
 )
 
 set(ENABLE_BUILTIN_MSGS_TEST ON CACHE BOOL  "Enable builtin message test")
