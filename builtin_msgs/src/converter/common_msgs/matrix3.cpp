@@ -10,7 +10,7 @@ namespace lux::communication::builtin_msgs
 		using STMatrix3 = lux::communication::builtin_msgs::common_msgs::Matrix3S;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBMatrix3& in, STMatrix3& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBMatrix3& in, STMatrix3& out)
 	{
 		out(0, 0) = in.x1();
 		out(0, 1) = in.y1();
@@ -25,7 +25,7 @@ namespace lux::communication::builtin_msgs
 		out(2, 2) = in.z3();
 	}
 
-	template<> void pb_st_converter::st2pb(const STMatrix3& in, PBMatrix3& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STMatrix3& in, PBMatrix3& out)
 	{
 		out.set_x1(in.coeff(0, 0));
 		out.set_y1(in.coeff(0, 1));

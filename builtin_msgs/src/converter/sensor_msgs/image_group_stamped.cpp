@@ -10,7 +10,7 @@ namespace lux::communication::builtin_msgs
 		using STImageGroupStamped = builtin_msgs::sensor_msgs::ImageGroupStampedS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBImageGroupStamped& in, STImageGroupStamped& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBImageGroupStamped& in, STImageGroupStamped& out)
 	{
 		pb_st_converter::pb2st(in.timestamp(), out.timestamp);
 		for (const auto& image : in.images())
@@ -19,7 +19,7 @@ namespace lux::communication::builtin_msgs
 		}
 	}
 
-	template<> void pb_st_converter::st2pb(const STImageGroupStamped& in, PBImageGroupStamped& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STImageGroupStamped& in, PBImageGroupStamped& out)
 	{
 		pb_st_converter::st2pb(in.timestamp, *out.mutable_timestamp());
 		for (const auto& image : in.images)

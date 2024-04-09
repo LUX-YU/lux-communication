@@ -10,7 +10,7 @@ namespace lux::communication::builtin_msgs
 		using STMatrixN = lux::communication::builtin_msgs::common_msgs::MatrixNS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBMatrixN& in, STMatrixN& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBMatrixN& in, STMatrixN& out)
 	{
 		if (out.rows() != in.rows() || out.cols() != in.rows())
 		{
@@ -19,7 +19,7 @@ namespace lux::communication::builtin_msgs
 		memcpy(out.data(), in.data().data(), in.data_size() * sizeof(double));
 	}
 
-	template<> void pb_st_converter::st2pb(const STMatrixN& in, PBMatrixN& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STMatrixN& in, PBMatrixN& out)
 	{
 		if (out.rows() != in.rows() || out.cols() != in.rows())
 		{

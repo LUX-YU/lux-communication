@@ -10,7 +10,7 @@ namespace lux::communication::builtin_msgs
 		using STImuS = builtin_msgs::sensor_msgs::ImuS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBImu& in, STImuS& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBImu& in, STImuS& out)
 	{
 		pb_st_converter::pb2st(in.orientation(), out.orientation);
 		pb_st_converter::pb2st(in.orientation_covariance(), out.orientation_covariance);
@@ -20,7 +20,7 @@ namespace lux::communication::builtin_msgs
 		pb_st_converter::pb2st(in.linear_acceleration_covariance(), out.linear_acceleration_covariance);
 	}
 
-	template<> void pb_st_converter::st2pb(const STImuS& in, PBImu& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STImuS& in, PBImu& out)
 	{
 		pb_st_converter::st2pb(in.orientation, *out.mutable_orientation());
 		pb_st_converter::st2pb(in.orientation_covariance, *out.mutable_orientation_covariance());

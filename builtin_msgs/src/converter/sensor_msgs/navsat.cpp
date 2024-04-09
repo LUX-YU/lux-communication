@@ -10,7 +10,7 @@ namespace lux::communication::builtin_msgs
 		using STNavsat = builtin_msgs::sensor_msgs::NavsatS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBNavsat& in, STNavsat& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBNavsat& in, STNavsat& out)
 	{
 		pb2st(in.position_covariance(), out.position_covariance);
 		out.latitude = in.latitude();
@@ -20,7 +20,7 @@ namespace lux::communication::builtin_msgs
 		out.service = static_cast<builtin_msgs::sensor_msgs::EService>(in.service());
 	}
 
-	template<> void pb_st_converter::st2pb(const STNavsat& in, PBNavsat& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STNavsat& in, PBNavsat& out)
 	{
 		st2pb(in.position_covariance, *out.mutable_position_covariance());
 		out.set_latitude(in.latitude);

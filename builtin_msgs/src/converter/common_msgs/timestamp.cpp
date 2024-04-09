@@ -38,13 +38,13 @@ namespace lux::communication::builtin_msgs
 		using STTimestamp = lux::communication::builtin_msgs::common_msgs::TimestampS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBTimestamp& in, STTimestamp& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBTimestamp& in, STTimestamp& out)
 	{
 		out.secs = in.secs();
 		out.nsecs = in.nsecs();
 	}
 
-	template<> void pb_st_converter::st2pb(const STTimestamp& in, PBTimestamp& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STTimestamp& in, PBTimestamp& out)
 	{
 		out.set_secs(in.secs);
 		out.set_nsecs(in.nsecs);

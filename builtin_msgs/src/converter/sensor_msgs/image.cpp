@@ -71,10 +71,6 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 	ImageS::ImageS(ImageS&& other) noexcept
 	{
-		if (_data)
-		{
-			STBI_FREE(_data);
-		}
 		_width = other._width;
 		_height = other._height;
 		_channels = other._channels;
@@ -84,6 +80,26 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		other._height = 0;
 		other._channels = 0;
 		other._data = nullptr;
+	}
+
+	ImageS& ImageS::operator=(ImageS&& other) noexcept
+	{
+		if (_data)
+		{
+			STBI_FREE(_data);
+		}
+
+		_width = other._width;
+		_height = other._height;
+		_channels = other._channels;
+		_data = other._data;
+
+		other._width = 0;
+		other._height = 0;
+		other._channels = 0;
+		other._data = nullptr;
+
+		return *this;
 	}
 
 	bool ImageS::load(const char* path)
@@ -105,26 +121,6 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		}
 
 		return true;
-	}
-
-	ImageS& ImageS::operator=(ImageS&& other) noexcept
-	{
-		if (_data)
-		{
-			STBI_FREE(_data);
-		}
-
-		_width = other._width;
-		_height = other._height;
-		_channels = other._channels;
-		_data = other._data;
-
-		other._width = 0;
-		other._height = 0;
-		other._channels = 0;
-		other._data = nullptr;
-
-		return *this;
 	}
 
 	ImageS::~ImageS()

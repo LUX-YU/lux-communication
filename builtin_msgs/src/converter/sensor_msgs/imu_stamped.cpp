@@ -10,13 +10,13 @@ namespace lux::communication::builtin_msgs
 		using STImuStampedS = builtin_msgs::sensor_msgs::ImuStampedS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBImuStamped& in, STImuStampedS& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBImuStamped& in, STImuStampedS& out)
 	{
 		pb2st(in.timestamp(), out.timestamp);
 		pb2st(in.imu(), out.imu);
 	}
 
-	template<> void pb_st_converter::st2pb(const STImuStampedS& in, PBImuStamped& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STImuStampedS& in, PBImuStamped& out)
 	{
 		st2pb(in.timestamp, *out.mutable_timestamp());
 		st2pb(in.imu, *out.mutable_imu());

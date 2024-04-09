@@ -10,7 +10,7 @@ namespace lux::communication::builtin_msgs
 		using STImageGroup = builtin_msgs::sensor_msgs::ImageGroupS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBImageGroup& in, STImageGroup& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBImageGroup& in, STImageGroup& out)
 	{
 		out.clear();
 		for (const auto& image : in.images())
@@ -19,7 +19,7 @@ namespace lux::communication::builtin_msgs
 		}
 	}
 
-	template<> void pb_st_converter::st2pb(const STImageGroup& in, PBImageGroup& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STImageGroup& in, PBImageGroup& out)
 	{
 		out.Clear();
 		for (const auto& image : in)

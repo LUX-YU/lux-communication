@@ -10,12 +10,12 @@ namespace lux::communication::builtin_msgs
 		using STPoint = builtin_msgs::geometry_msgs::PointS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBPoint& in, STPoint& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBPoint& in, STPoint& out)
 	{
 		out = { in.x() ,in.y() ,in.z() };
 	}
 
-	template<> void pb_st_converter::st2pb(const STPoint& in, PBPoint& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STPoint& in, PBPoint& out)
 	{
 		out.set_x(in.x());
 		out.set_y(in.y());

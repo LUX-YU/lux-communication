@@ -10,12 +10,12 @@ namespace lux::communication::builtin_msgs
 		using STQuaternion = builtin_msgs::geometry_msgs::QuaternionS;
 	}
 
-	template<> void pb_st_converter::pb2st(const PBQuaternion& in, STQuaternion& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBQuaternion& in, STQuaternion& out)
 	{
 		out = { in.w(), in.x(), in.y(), in.z() };
 	}
 
-	template<> void pb_st_converter::st2pb(const STQuaternion& in, PBQuaternion& out)
+	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STQuaternion& in, PBQuaternion& out)
 	{
 		out.set_x(in.x());
 		out.set_y(in.y());
