@@ -13,7 +13,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 	public:
 		friend class ::lux::communication::builtin_msgs::pb_st_converter;
 		LUX_COMMUNICATION_PUBLIC ImageS();
-		LUX_COMMUNICATION_PUBLIC ImageS(const char* path);
+		LUX_COMMUNICATION_PUBLIC explicit ImageS(const char* path);
 		// copy
 		LUX_COMMUNICATION_PUBLIC ImageS(int width, int height, int channels, const void* data);
 		LUX_COMMUNICATION_PUBLIC ImageS(const ImageS&);

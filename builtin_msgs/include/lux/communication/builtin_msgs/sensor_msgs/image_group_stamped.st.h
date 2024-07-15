@@ -9,5 +9,11 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		common_msgs::TimestampS timestamp;
 		ImageGroupS				images;
 	};
+
+	struct ImagePairStampedS
+	{
+		common_msgs::TimestampS timestamp;
+		ImagePairS				images;
+	};
 }
 

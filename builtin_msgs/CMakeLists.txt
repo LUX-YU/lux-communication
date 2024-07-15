@@ -72,13 +72,15 @@ add_component(
 
 component_include_directories(
 	builtin_msgs
-	BUILD_TIME_SHARED
-		${PROTO_GEN_DIR}
 	BUILD_TIME_EXPORT
 		${CMAKE_CURRENT_SOURCE_DIR}/include
 		${LUX_GENERATE_HEADER_DIR}
+	BUILD_TIME_SHARED
+		${PROTO_GEN_DIR}
 	PRIVATE
         ${Stb_INCLUDE_DIR}
+	INSTALL_TIME
+        include
 )
 
 component_add_internal_dependencies(
