@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.geometry_msgs;
+
+import "lux/communication/builtin_msgs/common_msgs/timestamp.proto";
+import "lux/communication/builtin_msgs/geometry_msgs/pose.proto";
+
+message PoseStamped {
+	optional lux.communication.builtin_msgs.common_msgs.Timestamp timestamp = 1;
+	optional Pose pose = 2;
+}
