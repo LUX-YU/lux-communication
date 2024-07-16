@@ -1,7 +1,7 @@
 #pragma once
 #include <lux/communication/visibility.h>
 
-namespace lux::communication
+namespace lux::communication::builtin_msgs
 {
 	class pb_st_converter;
 }
@@ -11,8 +11,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 	class ImageS
 	{
 	public:
-		friend class pb_st_converter;
-
+		friend class ::lux::communication::builtin_msgs::pb_st_converter;
 		LUX_COMMUNICATION_PUBLIC ImageS();
 		LUX_COMMUNICATION_PUBLIC explicit ImageS(const char* path);
 		// copy
