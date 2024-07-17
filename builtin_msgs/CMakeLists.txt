@@ -22,6 +22,8 @@ set(BUILTIN_MSGS_PROTO_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/point.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/pose.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/pose_stamped.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/transform.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/transform_stamped.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/accel.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/twist.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/image.proto
@@ -53,6 +55,8 @@ set(PB_ST_CONVERTER_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/point.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/pose.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/pose_stamped.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/transform.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/transform_stamped.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/accel.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/twist.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/image.cpp
