@@ -3,5 +3,5 @@
 
 namespace lux::communication::builtin_msgs::common_msgs
 {
-	using Vector3S = Eigen::Vector3d;
+	using Vector4S = Eigen::Vector<double, 4>;
 }

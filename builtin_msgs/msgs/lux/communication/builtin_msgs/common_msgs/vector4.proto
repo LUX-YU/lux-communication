@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.common_msgs;
+
+message Vector4{
+	optional double x = 1;
+	optional double y = 2;
+	optional double z = 3;
+	optional double w = 4;
+}

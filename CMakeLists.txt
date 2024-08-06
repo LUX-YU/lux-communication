@@ -18,6 +18,7 @@ generate_visibility_header(
 
 add_subdirectory(protobuf)
 add_subdirectory(builtin_msgs)
+add_subdirectory(node)
 
 install_components(
     PROJECT_NAME    lux-communication
@@ -25,4 +26,5 @@ install_components(
     NAMESPACE       lux::communication
     COMPONENTS      protobuf
                     builtin_msgs
+                    node
 )
