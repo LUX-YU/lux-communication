@@ -167,11 +167,6 @@ namespace lux::communication
 			action.type = ENodeActionType::Pinged;
 			action.info = _self_info;
 
-
-			while(_running)
-			{
-				_multicast->send(reinterpret_cast<void*>(&action), sizeof(action));
-				std::this_thread::sleep_for(std
 			while(_running)
 			{
 				_multicast->send(reinterpret_cast<void*>(&action), sizeof(action));
