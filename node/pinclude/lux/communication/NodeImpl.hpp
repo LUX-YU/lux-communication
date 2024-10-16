@@ -1,7 +1,6 @@
 #pragma once
 #include <zmq.hpp>
 #include <uuid.h>
-#include <thread>
 #include <cassert>
 #include <lux/communication/NodeGroup.hpp>
 #include <lux/cxx/concurrent/ThreadPool.hpp>

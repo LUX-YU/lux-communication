@@ -6,9 +6,11 @@
 #include <arpa/inet.h>
 #include <poll.h>
 
+#include "lux/communication/visibility.h"
+
 namespace lux::communication
 {
-	class UdpMultiCastImpl
+	class LUX_COMMUNICATION_PUBLIC UdpMultiCastImpl
 	{
 	public:
 		UdpMultiCastImpl(std::string_view addr, int prt)

@@ -1,9 +1,8 @@
 find_package(cppzmq   CONFIG REQUIRED)
 find_package(stduuid  CONFIG REQUIRED)
-find_package(lux-cxx		 REQUIRED COMPONENTS concurrent)
+find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time)
 
 set(LUX_COMMUNICATION_NODE_SRC
-	${CMAKE_CURRENT_SOURCE_DIR}/src/Node.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/Publisher.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/Subscriber.cpp
 )
@@ -35,9 +34,9 @@ target_link_libraries(
 	node 
 	PUBLIC
 	cppzmq
-	PRIVATE
 	stduuid
 	lux::cxx::concurrent
+	lux::cxx::compile_time
 )
 
 target_compile_definitions(
