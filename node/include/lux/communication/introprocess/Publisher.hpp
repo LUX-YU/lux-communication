@@ -73,6 +73,9 @@ namespace lux::communication::introprocess{
         }
 
     private:
+        void stop() override {
+			queue_close(queue_);
+		}
 
         // crtp
         size_t pop_bulk(std::vector<message_t<T>>& messages, size_t max_count) {

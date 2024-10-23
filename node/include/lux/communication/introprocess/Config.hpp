@@ -4,8 +4,6 @@
 
 #include "lux/cxx/concurrent/BlockingQueue.hpp"
 
-#define __MACRO_USE_LOCKFREE_QUEUE__ 1
-
 #ifdef __MACRO_USE_LOCKFREE_QUEUE__
 #	include "concurrentqueue/concurrentqueue.h"
 #endif
@@ -108,6 +106,14 @@ namespace lux::communication::introprocess {
 	}
 
 	template<typename T>
+	static inline size_t queue_pop_bulk(queue_t<T>& queue, std::vector<T>& data, size_t max) {
+		data.resize(max);
+		size_t count = queue.try_pop_bulk(data.begin(), max);
+		data.resize(count);
+		return count;
+	}
+
+	template<typename T>
 	static inline bool queue_try_pop(queue_t<T>& queue, T& obj) {
 		return queue.try_pop(obj);
 	}
@@ -115,6 +121,11 @@ namespace lux::communication::introprocess {
 	template<typename T, typename U>
 	static inline bool queue_push(queue_t<T>& queue, U&& obj) {
 		return queue.push(std::forward<U>(obj));
+	}
+
+	template<typename T>
+	static inline bool queue_push_bulk(queue_t<T>& queue, std::vector<T>& data) {
+		return queue.push_bulk(std::make_move_iterator(data.begin()), data.size());
 	}
 
 	template<typename T, typename U>
@@ -136,6 +147,7 @@ namespace lux::communication::introprocess {
 		SubscriberNewData,
 		SubscriberLeave,
 		SubscriberJoin,
+		DomainClose,
 		Stop
 	};
 
@@ -144,12 +156,16 @@ namespace lux::communication::introprocess {
 	template<typename T> class Publisher;
 	template<typename T> class Subscriber;
 
+	class TopicDomainBase;
+
 	struct EventPayload {};
 	struct PublisherPayload : EventPayload { PubSubBase* object{ nullptr }; };
 	struct SubscriberPayload : EventPayload { SubscriberBase* object{ nullptr }; };
+	struct DomainPayload : EventPayload { TopicDomainBase* object{ nullptr }; };
 
 	struct PublisherRequestPayload : PublisherPayload { std::promise<void> promise; };
 	struct SubscriberRequestPayload : SubscriberPayload { std::promise<void> promise; };
+	struct DomainRequestPayload : DomainPayload { std::promise<void> promise; };
 
 	struct Stoppayload : EventPayload{};
 
@@ -160,6 +176,7 @@ namespace lux::communication::introprocess {
 	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberNewData> { using type = SubscriberPayload; };
 	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberJoin> { using type = SubscriberRequestPayload; };
 	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberLeave> { using type = SubscriberRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::DomainClose> { using type = SubscriberRequestPayload; };
 	template<> struct PayloadTypeMap<ECommunicationEvent::Stop> { using type = Stoppayload; };
 
 	struct CommunicationEvent {
@@ -172,10 +189,6 @@ namespace lux::communication::introprocess {
 	public:
 		EventHandler(size_t queue_size)
 			: event_queue_(queue_size){}
-
-		~EventHandler() {
-			stop_event_handler();
-		}
 
 		bool handle(const CommunicationEvent& event) {
 			return static_cast<Derived*>(this)->handle(event);
@@ -261,6 +274,8 @@ namespace lux::communication::introprocess {
 
 	class PubSubBase {
 	public:
+		friend class Node;
+
 		using node_t	 = Node;
 		using node_ptr_t = node_t*;
 		// using node_ptr_t = std::shared_ptr<node_t>;
@@ -270,6 +285,8 @@ namespace lux::communication::introprocess {
 		EPubSub type() const {
 			return type_;
 		}
+
+		virtual void stop() = 0;
 
 		virtual ~PubSubBase();
 

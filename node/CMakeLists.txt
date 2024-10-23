@@ -49,7 +49,7 @@ if(USE_SHARED_MESSAGE_MODE)
 	)
 endif()
 
-set(USE_LOCKFREE_QUEUE FALSE CACHE BOOL "Use cameron314/concurrentqueue")
+set(USE_LOCKFREE_QUEUE TRUE CACHE BOOL "Use cameron314/concurrentqueue")
 if(USE_LOCKFREE_QUEUE)
 	find_package(unofficial-concurrentqueue CONFIG REQUIRED)
 	target_link_libraries(
@@ -76,14 +76,11 @@ else()
 	)
 endif()
 
-
 target_compile_definitions(
 	node
 	PRIVATE
 	LUX_COMMUNICATION_LIBRARY
 )
-
-
 
 set(ENABLE_NODE_TEST TRUE CACHE BOOL "Enable node test")
 if(ENABLE_NODE_TEST)

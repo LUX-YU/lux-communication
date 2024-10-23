@@ -48,6 +48,9 @@ namespace lux::communication::introprocess{
 			: core_(std::move(core)), name_(name), parent_t(max_queue_size){}
 
 		virtual ~Node() {
+			allPublisherStop();
+			allSubscriberStop();
+
 			parent_t::stop_event_handler();
 			exit_ = true;
 		}
@@ -142,6 +145,18 @@ namespace lux::communication::introprocess{
 			ptr->type() == EPubSub::Publisher ?
 				addToList(publishers_, ptr) :
 				addToList(subscirbers_, static_cast<SubscriberBase*>(ptr));
+		}
+
+		void allPublisherStop() {
+			for (auto& pub : publishers_) {
+				pub->stop();
+			}
+		}
+
+		void allSubscriberStop() {
+			for (auto& sub : subscirbers_) {
+				sub->stop();
+			}
 		}
 
 		queue_t<std::unique_ptr<CommunicationEvent>>	event_queue_;

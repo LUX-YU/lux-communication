@@ -21,7 +21,6 @@
 #include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/cxx/container/HeterogeneousLookup.hpp>
 #include <lux/cxx/concurrent/BlockingQueue.hpp>
-#include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/cxx/concurrent/ThreadPool.hpp>
 
 #include "lux/communication/introprocess/Config.hpp"
@@ -59,16 +58,18 @@ namespace lux::communication::introprocess {
 
     // The Core class manages TopicDomain instances and provides methods
     // to create, access, and check the existence of TopicDomains by topic name.
-    class Core {
+    class Core : public EventHandler<Core>{
     protected:
         struct MakeSharedCoreHelper{};
         friend class TopicDomainBase;
+        friend class EventHandler<Core>;
     public:
+        using parent_t = EventHandler<Core>;
+
         Core(const MakeSharedCoreHelper& helper, int argc, char* argv[])
             : Core(argc, argv){}
 
         virtual ~Core() {
-            blocking_queue_close(leave_request_list_);
             if (ok_) {
                 shutdown();
             }
@@ -150,34 +151,28 @@ namespace lux::communication::introprocess {
         }
 
         void init(){
-            std::thread(
-                [this]() {core_loop(); }
-            ).swap(core_thread_);
+            std::thread([this]{event_loop();}).swap(core_thread_);
         }
 
         void shutdown() {
+            stop_event_handler();
             ok_ = false;
         }
 
     private:
+        bool handle(const CommunicationEvent& event) {
+            switch(event.type){
+                case ECommunicationEvent::DomainClose:{
+                    auto payload = static_cast<DomainRequestPayload*>(event.payload.get());
+                    auto domain  = static_cast<TopicDomainBase*>(payload->object);
+                    removeTopicDomain(domain);
+                    break;
+                }
+				case ECommunicationEvent::Stop:
+					return false;
+			}
 
-        void core_loop() {
-            DomainLeaveRequest* request;
-            while (ok_ && blocking_queue_pop(leave_request_list_, request)){
-                std::scoped_lock lck(mutex_);
-                removeTopicDomain(request->object);
-                request->promise.set_value();
-            }
-        }
-
-        std::future<void> domainLeaveReuest(TopicDomainBase* ptr) {
-            DomainLeaveRequest request;
-            request.object = ptr;
-            auto future = request.promise.get_future();
-            
-            blocking_queue_push(leave_request_list_, &request);
-
-            return future;
+            return false;
         }
 
         void removeTopicDomain(TopicDomainBase* ptr) {
@@ -193,20 +188,23 @@ namespace lux::communication::introprocess {
 
         // Private constructor to enforce the use of the static create method
         Core(int argc, char* argv[])
-            :leave_request_list_(max_queue_size) {}
+            : parent_t(max_queue_size){}
 
 
         std::atomic<bool>                             ok_{true};
         std::thread                                   core_thread_;
 
-        blocking_queue_t<DomainLeaveRequest*>         leave_request_list_;
         std::vector<std::shared_ptr<TopicDomainBase>> topic_domains_;
 
         std::mutex                                    mutex_;
     };
 
     TopicDomainBase::~TopicDomainBase() {
-        auto future = core_ptr_->domainLeaveReuest(this);
+        auto event_payload = std::make_unique<DomainRequestPayload>();
+        event_payload->object = this;
+
+        auto future = core_ptr_->request<ECommunicationEvent::DomainClose>(std::move(event_payload));
+
         future.wait();
     }
 

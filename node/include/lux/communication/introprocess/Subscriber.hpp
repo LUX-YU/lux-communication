@@ -62,6 +62,9 @@ namespace lux::communication::introprocess {
         }
 
     private:
+        void stop() override {
+            queue_close(queue_);
+        }
 
         // crtp
         void push_bulk(std::vector<message_t<T>>& messages) {
