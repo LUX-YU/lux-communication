@@ -33,17 +33,57 @@ component_include_directories(
 target_link_libraries(
 	node 
 	PUBLIC
-	cppzmq
-	stduuid
+	# cppzmq
 	lux::cxx::concurrent
 	lux::cxx::compile_time
+	PRIVATE
+	stduuid
 )
+
+set(USE_SHARED_MESSAGE_MODE FALSE CACHE BOOL "Use shared_ptr as message points")
+if(USE_SHARED_MESSAGE_MODE)
+	target_compile_definitions(
+		node
+		PUBLIC
+		__USE_SHARED_MESSAGE_MODE__
+	)
+endif()
+
+set(USE_LOCKFREE_QUEUE FALSE CACHE BOOL "Use cameron314/concurrentqueue")
+if(USE_LOCKFREE_QUEUE)
+	find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+	target_link_libraries(
+		node
+		PUBLIC
+		unofficial::concurrentqueue::concurrentqueue
+	)
+
+	target_compile_definitions(
+		node
+		PUBLIC
+		__MACRO_USE_LOCKFREE_QUEUE__
+	)
+
+	component_add_transitive_commands(
+		node
+		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
+		"find_package(unofficial-concurrentqueue CONFIG REQUIRED)"
+	)
+else()
+	component_add_transitive_commands(
+		node
+		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
+	)
+endif()
+
 
 target_compile_definitions(
 	node
 	PRIVATE
 	LUX_COMMUNICATION_LIBRARY
 )
+
+
 
 set(ENABLE_NODE_TEST TRUE CACHE BOOL "Enable node test")
 if(ENABLE_NODE_TEST)

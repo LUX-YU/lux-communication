@@ -56,10 +56,10 @@ public:
 		subscriber_ = createSubscriber<std::string>(
 			"string_topic",
 			[this](std::unique_ptr<std::string> message) {
-				if (count_++ % 100000 == 0) {
+				if (count_ % 100000 == 0) {
 					std::cout << count_ << std::endl;
-					count_++;
 				}
+				count_++;
 			},
 			10
 		);
@@ -96,7 +96,7 @@ private:
 
 int main(int argc, char* argv[])
 {
-	auto core = Core::create(argc, argv);
+	std::shared_ptr<Core> core = Core::create(argc, argv);
 	core->init();
 	
 	SubscriberNode	subscriber_node(core);

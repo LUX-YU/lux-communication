@@ -6,62 +6,49 @@
 #include <functional>
 #include <iostream>
 
+#include "lux/cxx/concurrent/BlockingQueue.hpp"
 #include "lux/communication/introprocess/Config.hpp"
 #include "lux/communication/visibility.h"
 
 namespace lux::communication::introprocess{
-	class PubSubBase;
-	template<typename T> class Publisher;
-	template<typename T> class Subscriber;
-	class Core;
 
-	enum class EPubSub {
-		Publisher,
-		Subscriber
+	enum class ENodeEventType{
+		NewSubscriberMessage,
+		PublisherLeave,
+		SubscriberLeave
 	};
 
-	class Node;
-	class PubSubBase {
-	public:
-		using node_t     = Node;
-		using node_ptr_t = node_t*;
-		// using node_ptr_t = std::shared_ptr<node_t>;
-
-		PubSubBase(node_ptr_t node, EPubSub type);
-
-		EPubSub type() const {
-			return type_;
-		}
-
-		virtual ~PubSubBase();
-
-		virtual std::shared_ptr<TopicDomainBase> domain() = 0;
-
-	protected:
-		EPubSub	   type_;
-		node_ptr_t node_;
+	class NodeEvent {
+		ENodeEventType event_type;
 	};
 
-	class SubscriberBase : public PubSubBase {
-	public:
-		SubscriberBase(node_ptr_t node) 
-			: PubSubBase(std::move(node), EPubSub::Subscriber){
-
-		}
-
-		virtual void popAndDoCallback() = 0;
+	struct NewSubscriberMessageEvent : public NodeEvent {
+		SubscriberBase* object;
 	};
 
-	class Node
+	struct PublisherLeaveEvent : public NodeEvent {
+		SubscriberBase* object;
+	};
+
+	struct SubscriberLeaveEvent : public NodeEvent {
+		SubscriberBase* object;
+	};
+
+	class Node : public EventHandler<Node>
 	{
 		friend class PubSubBase;
+		friend class EventHandler<Node>;
 	protected:
 		struct MakeSharedCoreHelper{};
 	public:
+		using parent_t = EventHandler<Node>;
+		template<typename T> using callback_t = std::function<void(message_t<T>)>;
+
 		Node(std::shared_ptr<Core> core, std::string_view name)
-			: core_(std::move(core)), name_(name){}
+			: core_(std::move(core)), name_(name), parent_t(max_queue_size){}
 
 		virtual ~Node() {
+			parent_t::stop_event_handler();
 			exit_ = true;
 		}
 
@@ -80,25 +67,51 @@ namespace lux::communication::introprocess{
 		template<typename T> std::shared_ptr<Publisher<T>>
 		createPublisher(std::string_view topic, size_t queue_size);
 
-		template<typename T> using callback_t = std::function<void(message_t<T>)>;
-
 		template<typename T> std::shared_ptr<Subscriber<T>>
 		createSubscriber(std::string_view topic, callback_t<T> cb, size_t queue_size);
 
-		void spinOnce() {
-			for (auto subscriber : subscirbers_) {
-				auto sub_base = static_cast<SubscriberBase*>(subscriber);
-				sub_base->popAndDoCallback();
-			}
+		bool spinOnce() {
+			return parent_t::event_tick();
 		}
 
 		void spin() {
-			while (core_->ok() && !exit_) {
-				spinOnce();
-			}
+			parent_t::event_loop();
 		}
 
 	private:
+		bool isStop() const {
+			return !core().ok();
+		}
+
+		bool handle(const CommunicationEvent& event) {
+			auto payload_ptr	= event.payload.get();
+			switch (event.type) {
+				case ECommunicationEvent::PublisherLeave:
+				{
+					auto payload = static_cast<PublisherRequestPayload*>(event.payload.get());
+					removePubSub(payload->object);
+					payload->promise.set_value();
+					break;
+				}
+				case ECommunicationEvent::SubscriberLeave:
+				{
+					auto payload = static_cast<SubscriberRequestPayload*>(event.payload.get());
+					removePubSub(payload->object);
+					payload->promise.set_value();
+					break;
+				}
+				case ECommunicationEvent::SubscriberNewData:
+				{
+					auto payload    = static_cast<SubscriberPayload*>(event.payload.get());
+					auto subscriber = static_cast<SubscriberBase*>(payload->object);
+					subscriber->popAndDoCallback();
+					break;
+				}
+			}
+
+			return true;
+		}
+
 		using PubSubMap		 = std::vector<PubSubBase*>;
 		using SubscriberList = std::vector<SubscriberBase*>;
 
@@ -131,11 +144,12 @@ namespace lux::communication::introprocess{
 				addToList(subscirbers_, static_cast<SubscriberBase*>(ptr));
 		}
 
-		bool						exit_{false};
-		PubSubMap					publishers_;
-		SubscriberList				subscirbers_;
-		std::shared_ptr<Core>		core_;
-		std::string					name_;
+		queue_t<std::unique_ptr<CommunicationEvent>>	event_queue_;
+		bool											exit_{false};
+		PubSubMap										publishers_;
+		SubscriberList									subscirbers_;
+		std::shared_ptr<Core>							core_;
+		std::string										name_;
 	};
 
 	PubSubBase::PubSubBase(node_ptr_t node, EPubSub type)
@@ -144,6 +158,19 @@ namespace lux::communication::introprocess{
 	}
 
 	PubSubBase::~PubSubBase() {
-		node_->removePubSub(this);
+		auto payload = std::make_unique<PublisherRequestPayload>();
+		payload->object		= this;
+		auto future = node_->request<ECommunicationEvent::PublisherLeave>(std::move(payload));
+	
+		future.get();
+	};
+
+	class SingleThreadNode : public Node {
+		~SingleThreadNode() {
+
+		}
+
+	private:
+		std::atomic<bool> eixt;
 	};
 }

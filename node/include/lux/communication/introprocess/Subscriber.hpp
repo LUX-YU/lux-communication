@@ -7,36 +7,38 @@
 
 namespace lux::communication::introprocess {
     template<class T>
-    class Subscriber : public SubscriberBase, public CrtpSubscriber<Subscriber<T>, T>{
+    class Subscriber : public CrtpSubscriber<Subscriber<T>, T>{
         friend class Node;
+        friend class CrtpSubscriber<Subscriber<T>, T>;
     public:
         using domain_t      = TopicDomain<T>;
         using domain_ptr_t  = std::shared_ptr<domain_t>;
-
         using callback_t    = typename Node::callback_t<T>;
+        using parent_t      = CrtpSubscriber<Subscriber<T>, T>;
+        using node_ptr_t    = typename parent_t::node_ptr_t;
 
         Subscriber(node_ptr_t node, std::string_view topic, callback_t callback,  size_t queue_size)
-            : SubscriberBase(std::move(node)), callback_(std::move(callback)), max_size_(queue_size), queue_(queue_size) {
-            auto& core = node_->core();
+            : parent_t(std::move(node)), callback_(std::move(callback)), max_size_(queue_size), queue_(queue_size) {
+            auto& core = parent_t::node_->core();
             auto domain = core.getDomain<T>(topic);
             if (!domain) {
                 domain = core.createDomain<T>(topic);
             }
 
-            auto payload = std::make_unique<SubscriberRequestPayload<T>>();
+            auto payload = std::make_unique<SubscriberRequestPayload>();
             payload->object = this;
-            auto future = domain->request<ETopicDomainEvent::SubscriberJoin>(std::move(payload));
+            auto future = domain->request<ECommunicationEvent::SubscriberJoin>(std::move(payload));
             future.wait();
 
             domain_ = std::move(domain);
         }
 
-        ~Subscriber() override{
-            queue_.close();
-            auto payload = std::make_unique<SubscriberRequestPayload<T>>();
+        ~Subscriber() override {
+            queue_close(queue_);
+            auto payload = std::make_unique<SubscriberRequestPayload>();
             payload->object = this;
-            
-            auto future = domain_->request<ETopicDomainEvent::SubscriberLeave>(std::move(payload));
+
+            auto future = domain_->request<ECommunicationEvent::SubscriberLeave>(std::move(payload));
             
             future.wait();
         };
@@ -49,22 +51,41 @@ namespace lux::communication::introprocess {
             return domain_;
         }
 
-        bool push(message_t<T> message) {
-            return queue_.try_push(std::move(message));
-        }
-
         void popAndDoCallback() override {
-            message_t<T> message;
-            if(queue_.try_pop(message) && callback_) {
-                callback_(std::move(message));
+            std::vector<message_t<T>> messages;
+            size_t count = queue_pop_bulk(queue_, messages, queue_batch_size);
+            if (count > 0 && callback_) {
+                for (auto& message : messages) {
+                    callback_(std::move(message));
+                }
             }
         }
 
     private:
-        callback_t                                   callback_;
-        domain_ptr_t                                 domain_;
-        size_t                                       max_size_;
-        lux::cxx::BlockingQueue<std::unique_ptr<T>>  queue_;
+
+        // crtp
+        void push_bulk(std::vector<message_t<T>>& messages) {
+            queue_push_bulk(queue_, messages);
+            auto payload = std::make_unique<SubscriberPayload>();
+            payload->object = this;
+            parent_t::node_->notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
+        }
+
+        // crtp
+        bool push(message_t<T> message) {
+            if (queue_try_push(queue_, std::move(message))) {
+                auto payload = std::make_unique<SubscriberPayload>();
+                payload->object = this;
+                parent_t::node_->notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
+            }
+
+            return false;
+        }
+
+        callback_t                   callback_;
+        domain_ptr_t                 domain_;
+        size_t                       max_size_;
+        queue_t<std::unique_ptr<T>>  queue_;
     };
 
     template<typename T> std::shared_ptr<Subscriber<T>>
