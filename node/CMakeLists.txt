@@ -51,11 +51,20 @@ endif()
 
 set(USE_LOCKFREE_QUEUE TRUE CACHE BOOL "Use cameron314/concurrentqueue")
 if(USE_LOCKFREE_QUEUE)
-	find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+	find_package(concurrentqueue CONFIG)
+	if(NOT concurrentqueue_FOUND)
+		find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+		set(CONCURRENT_QUEUE unofficial::concurrentqueue::concurrentqueue)
+		set(CONCURRENT_QUEUE_DEPENDS "find_package(unofficial-concurrentqueue CONFIG REQUIRED)")
+	else()
+		set(CONCURRENT_QUEUE concurrentqueue::concurrentqueue)
+		set(CONCURRENT_QUEUE_DEPENDS "find_package(concurrentqueue CONFIG REQUIRED)")
+	endif()
+	
 	target_link_libraries(
 		node
 		PUBLIC
-		unofficial::concurrentqueue::concurrentqueue
+		${CONCURRENT_QUEUE}
 	)
 
 	target_compile_definitions(
@@ -67,7 +76,7 @@ if(USE_LOCKFREE_QUEUE)
 	component_add_transitive_commands(
 		node
 		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
-		"find_package(unofficial-concurrentqueue CONFIG REQUIRED)"
+		"${CONCURRENT_QUEUE_DEPENDS}"
 	)
 else()
 	component_add_transitive_commands(

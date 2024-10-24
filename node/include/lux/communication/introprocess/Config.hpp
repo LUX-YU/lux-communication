@@ -1,11 +1,16 @@
 #pragma once
 #include <memory>
 #include <numeric>
+#include <future>
 
 #include "lux/cxx/concurrent/BlockingQueue.hpp"
 
 #ifdef __MACRO_USE_LOCKFREE_QUEUE__
-#	include "concurrentqueue/concurrentqueue.h"
+#	if __has_include("concurrentqueue/concurrentqueue.h")
+#		include "concurrentqueue/concurrentqueue.h"
+#	else
+#		include "moodycamel/blockingconcurrentqueue.h"
+#	endif
 #endif
 
 namespace lux::communication::introprocess {

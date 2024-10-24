@@ -160,6 +160,10 @@ namespace lux::communication::introprocess {
         }
 
     private:
+        bool isStop() const {
+			return !ok_;
+		}
+
         bool handle(const CommunicationEvent& event) {
             switch(event.type){
                 case ECommunicationEvent::DomainClose:{

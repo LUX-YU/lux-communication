@@ -20,14 +20,14 @@ namespace lux::communication::introprocess {
         Subscriber(node_ptr_t node, std::string_view topic, callback_t callback,  size_t queue_size)
             : parent_t(std::move(node)), callback_(std::move(callback)), max_size_(queue_size), queue_(queue_size) {
             auto& core = parent_t::node_->core();
-            auto domain = core.getDomain<T>(topic);
+            auto domain = core.template getDomain<T>(topic);
             if (!domain) {
-                domain = core.createDomain<T>(topic);
+                domain = core.template createDomain<T>(topic);
             }
 
             auto payload = std::make_unique<SubscriberRequestPayload>();
             payload->object = this;
-            auto future = domain->request<ECommunicationEvent::SubscriberJoin>(std::move(payload));
+            auto future = domain->template request<ECommunicationEvent::SubscriberJoin>(std::move(payload));
             future.wait();
 
             domain_ = std::move(domain);
@@ -38,7 +38,7 @@ namespace lux::communication::introprocess {
             auto payload = std::make_unique<SubscriberRequestPayload>();
             payload->object = this;
 
-            auto future = domain_->request<ECommunicationEvent::SubscriberLeave>(std::move(payload));
+            auto future = domain_->template request<ECommunicationEvent::SubscriberLeave>(std::move(payload));
             
             future.wait();
         };
@@ -71,7 +71,7 @@ namespace lux::communication::introprocess {
             queue_push_bulk(queue_, messages);
             auto payload = std::make_unique<SubscriberPayload>();
             payload->object = this;
-            parent_t::node_->notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
+            parent_t::node_->template notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
         }
 
         // crtp
@@ -79,7 +79,7 @@ namespace lux::communication::introprocess {
             if (queue_try_push(queue_, std::move(message))) {
                 auto payload = std::make_unique<SubscriberPayload>();
                 payload->object = this;
-                parent_t::node_->notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
+                parent_t::node_->template notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
             }
 
             return false;

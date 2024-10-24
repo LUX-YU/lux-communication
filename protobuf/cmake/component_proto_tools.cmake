@@ -100,6 +100,12 @@ function(generate_protos)
 		${ARGN}
 	)
 
+	if(Protobuf_PROTOC_EXECUTABLE)
+		set(Protobuf_Compiler ${Protobuf_PROTOC_EXECUTABLE})
+	else()
+		find_program(Protobuf_Compiler protoc)
+	endif()
+
 	if(NOT ARGS_PROTOC_OUT_DIR)
 		set(ARGS_PROTOC_OUT_DIR ${CMAKE_BINARY_DIR}/protogen)
 	endif()
@@ -151,7 +157,7 @@ function(generate_protos)
 	endforeach()
 	
 	execute_process(
-		COMMAND				${Protobuf_PROTOC_EXECUTABLE} ${COMPILER_ARGUMENTS}
+		COMMAND				${Protobuf_Compiler} ${COMPILER_ARGUMENTS}
 		RESULT_VARIABLE		OUTPUT
 		COMMAND_ECHO		STDOUT
 	)

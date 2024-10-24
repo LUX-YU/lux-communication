@@ -17,14 +17,14 @@ namespace lux::communication::introprocess{
         Publisher(node_ptr_t node, std::string_view topic, size_t queue_size)
             : parent_t(std::move(node), EPubSub::Publisher), max_size_(queue_size), queue_(queue_size) {
             auto& core = parent_t::node_->core();
-            auto domain = core.getDomain<T>(topic);
+            auto domain = core.template getDomain<T>(topic);
             if (!domain) {
-                domain = core.createDomain<T>(topic);
+                domain = core.template createDomain<T>(topic);
             }
 
             auto payload = std::make_unique<PublisherRequestPayload>();
             payload->object = this;
-            auto future = domain->request<ECommunicationEvent::PublisherJoin>(std::move(payload));
+            auto future = domain->template request<ECommunicationEvent::PublisherJoin>(std::move(payload));
             future.wait();
 
             domain_ = std::move(domain);
@@ -35,7 +35,7 @@ namespace lux::communication::introprocess{
             auto payload = std::make_unique<PublisherRequestPayload>();
             payload->object = this;
 
-            auto future = domain_->request<ECommunicationEvent::PublisherLeave>(std::move(payload));
+            auto future = domain_->template request<ECommunicationEvent::PublisherLeave>(std::move(payload));
 
             future.get();
         };
@@ -46,7 +46,7 @@ namespace lux::communication::introprocess{
             }
             auto payload = std::make_unique<PublisherPayload>();
             payload->object = this;
-            domain_->notify<ECommunicationEvent::PublisherNewData>(std::move(payload));
+            domain_->template notify<ECommunicationEvent::PublisherNewData>(std::move(payload));
         }
 
         void pub_bulk(std::vector<message_t<T>>& messages) {
@@ -56,7 +56,7 @@ namespace lux::communication::introprocess{
             }
             auto payload = std::make_unique<PublisherPayload>();
             payload->object = this;
-            domain_->notify<ECommunicationEvent::PublisherNewData>(std::move(payload));
+            domain_->template notify<ECommunicationEvent::PublisherNewData>(std::move(payload));
         }
 
         template<typename U>
