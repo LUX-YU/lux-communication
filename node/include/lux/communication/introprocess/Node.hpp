@@ -45,14 +45,28 @@ namespace lux::communication::introprocess{
 		template<typename T> using callback_t = std::function<void(message_t<T>)>;
 
 		Node(std::shared_ptr<Core> core, std::string_view name)
-			: core_(std::move(core)), name_(name), parent_t(max_queue_size){}
+			: core_(std::move(core)), name_(name), parent_t(max_queue_size){
+			auto payload = std::make_unique<NodeRequestPayload>();
+			payload->object = this;
+
+			auto future = core_->request<ECommunicationEvent::NodeCreated>(std::move(payload));
+		
+			future.get();
+		}
 
 		virtual ~Node() {
+			exit_ = true;
+
+			auto payload = std::make_unique<NodeRequestPayload>();
+			payload->object = this;
+			auto future = core_->request<ECommunicationEvent::NodeClosed>(std::move(payload));
+
+			future.get();
+
 			allPublisherStop();
 			allSubscriberStop();
 
 			parent_t::stop_event_handler();
-			exit_ = true;
 		}
 
 		Core& core() {
@@ -68,10 +82,24 @@ namespace lux::communication::introprocess{
 		}
 
 		template<typename T> std::shared_ptr<Publisher<T>>
-		createPublisher(std::string_view topic, size_t queue_size);
+		createPublisher(std::string_view topic, size_t queue_size) {
+			auto new_publisher = std::make_shared<Publisher<T>>(
+				this,
+				topic, queue_size
+			);
+
+			return new_publisher;
+		}
 
 		template<typename T> std::shared_ptr<Subscriber<T>>
-		createSubscriber(std::string_view topic, callback_t<T> cb, size_t queue_size);
+		createSubscriber(std::string_view topic, callback_t<T> cb, size_t queue_size) {
+			auto new_subscriber = std::make_shared<Subscriber<T>>(
+				this,
+				topic, std::move(cb), queue_size
+			);
+
+			return new_subscriber;
+		}
 
 		bool spinOnce() {
 			return parent_t::event_tick();
@@ -109,6 +137,15 @@ namespace lux::communication::introprocess{
 					auto subscriber = static_cast<SubscriberBase*>(payload->object);
 					subscriber->popAndDoCallback();
 					break;
+				}
+				case ECommunicationEvent::Stop:
+				{
+					auto payload = static_cast<Stoppayload*>(event.payload.get());
+					allPublisherStop();
+					allSubscriberStop();
+					payload->promise.set_value();
+					parent_t::stop();
+					return false;
 				}
 			}
 

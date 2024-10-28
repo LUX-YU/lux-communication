@@ -107,11 +107,11 @@ int main(int argc, char* argv[])
 	publish_node_1.start();
 	publish_node_2.start();
 
-	std::this_thread::sleep_for(std::chrono::seconds(10));
+	std::this_thread::sleep_for(std::chrono::seconds(5));
 
 	std::cout << subscriber_node.count() << std::endl;
 	// shutdown() will set ok to false, so every node will stop spining
-	core->shutdown();
+	core->shutdown_wait();
 
 	return 0;
 }

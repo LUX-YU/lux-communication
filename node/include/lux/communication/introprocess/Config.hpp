@@ -152,45 +152,61 @@ namespace lux::communication::introprocess {
 		SubscriberNewData,
 		SubscriberLeave,
 		SubscriberJoin,
-		DomainClose,
+		NodeCreated,
+		NodeClosed,
+		DomainClosed,
 		Stop
 	};
 
 	class PubSubBase;
 	class SubscriberBase;
+	class EventHandlerBase;
 	template<typename T> class Publisher;
 	template<typename T> class Subscriber;
 
 	class TopicDomainBase;
 
 	struct EventPayload {};
-	struct PublisherPayload : EventPayload { PubSubBase* object{ nullptr }; };
-	struct SubscriberPayload : EventPayload { SubscriberBase* object{ nullptr }; };
-	struct DomainPayload : EventPayload { TopicDomainBase* object{ nullptr }; };
+	struct PublisherPayload			: EventPayload { PubSubBase* object{ nullptr }; };
+	struct SubscriberPayload		: EventPayload { SubscriberBase* object{ nullptr }; };
+	struct DomainPayload			: EventPayload { EventHandlerBase* object{ nullptr }; };
+	struct NodePayload				: EventPayload { EventHandlerBase* object{ nullptr }; };
 
-	struct PublisherRequestPayload : PublisherPayload { std::promise<void> promise; };
+	struct PublisherRequestPayload	: PublisherPayload { std::promise<void> promise; };
 	struct SubscriberRequestPayload : SubscriberPayload { std::promise<void> promise; };
-	struct DomainRequestPayload : DomainPayload { std::promise<void> promise; };
+	struct DomainRequestPayload		: DomainPayload { std::promise<void> promise; };
+	struct NodeRequestPayload		: NodePayload { std::promise<void> promise; };
 
-	struct Stoppayload : EventPayload{};
+	struct Stoppayload				: EventPayload{std::promise<void> promise;};
 
 	template<ECommunicationEvent E> struct PayloadTypeMap;
-	template<> struct PayloadTypeMap<ECommunicationEvent::PublisherJoin> { using type = PublisherRequestPayload; };
-	template<> struct PayloadTypeMap<ECommunicationEvent::PublisherLeave> { using type = PublisherRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::PublisherJoin>	{ using type = PublisherRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::PublisherLeave>	{ using type = PublisherRequestPayload; };
 	template<> struct PayloadTypeMap<ECommunicationEvent::PublisherNewData> { using type = PublisherPayload; };
-	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberNewData> { using type = SubscriberPayload; };
-	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberJoin> { using type = SubscriberRequestPayload; };
-	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberLeave> { using type = SubscriberRequestPayload; };
-	template<> struct PayloadTypeMap<ECommunicationEvent::DomainClose> { using type = SubscriberRequestPayload; };
-	template<> struct PayloadTypeMap<ECommunicationEvent::Stop> { using type = Stoppayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberNewData>{ using type = SubscriberPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberJoin>	{ using type = SubscriberRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::SubscriberLeave>	{ using type = SubscriberRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::DomainClosed>		{ using type = DomainRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::NodeCreated>		{ using type = NodeRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::NodeClosed>		{ using type = NodeRequestPayload; };
+	template<> struct PayloadTypeMap<ECommunicationEvent::Stop>				{ using type = Stoppayload; };
 
 	struct CommunicationEvent {
 		ECommunicationEvent             type;
 		std::unique_ptr<EventPayload>   payload;
 	};
 
+	class EventHandlerBase {
+	public:
+		// try stop directory
+		virtual void stop() = 0;
+		// wait unit all events have been processed then stop
+		virtual std::future<void> stop_wait() = 0;
+	};
+
+	// CRTP parent class to handle event
 	template<typename Derived>
-	class EventHandler {
+	class EventHandler : public EventHandlerBase {
 	public:
 		EventHandler(size_t queue_size)
 			: event_queue_(queue_size){}
@@ -205,6 +221,15 @@ namespace lux::communication::introprocess {
 
 		void stop_event_handler() {
 			blocking_queue_close(event_queue_);
+		}
+
+		void stop() override{
+			stop_event_handler();
+		}
+		
+		std::future<void> stop_wait() override {
+			auto payload = std::make_unique<Stoppayload>();
+			return request<ECommunicationEvent::Stop>(std::move(payload));
 		}
 
 		void event_loop() {

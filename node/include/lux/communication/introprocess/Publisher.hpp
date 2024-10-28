@@ -41,7 +41,7 @@ namespace lux::communication::introprocess{
         };
 
         void pub(message_t<T> message) {
-            if (!queue_push(queue_, std::move(message))) {
+            if (exit_ || !queue_push(queue_, std::move(message))) {
                 return;
             }
             auto payload = std::make_unique<PublisherPayload>();
@@ -50,7 +50,7 @@ namespace lux::communication::introprocess{
         }
 
         void pub_bulk(std::vector<message_t<T>>& messages) {
-            if (messages.empty()) return;
+            if (messages.empty() || exit_) return;
             if (!queue_push_bulk(queue_, messages)) {
                 return;
             }
@@ -61,6 +61,9 @@ namespace lux::communication::introprocess{
 
         template<typename U>
         void pub(U&& message) {
+            if (exit_) {
+                return;
+            }
             pub(make_message(T, std::forward<U>(message)));
         }
 
@@ -74,6 +77,7 @@ namespace lux::communication::introprocess{
 
     private:
         void stop() override {
+            exit_ = true;
 			queue_close(queue_);
 		}
 
@@ -87,18 +91,9 @@ namespace lux::communication::introprocess{
             return queue_try_pop(queue_, message);
         }
 
+        bool                  exit_{false};
         domain_ptr_t          domain_;
         size_t                max_size_;
         queue_t<message_t<T>> queue_;
     };
-
-    template<typename T> std::shared_ptr<Publisher<T>>
-    Node::createPublisher(std::string_view topic, size_t queue_size) {
-        auto new_publisher = std::make_shared<Publisher<T>>(
-            this,
-            topic, queue_size
-        );
-
-        return new_publisher;
-    }
 }

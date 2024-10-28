@@ -90,14 +90,4 @@ namespace lux::communication::introprocess {
         size_t                       max_size_;
         queue_t<std::unique_ptr<T>>  queue_;
     };
-
-    template<typename T> std::shared_ptr<Subscriber<T>>
-    Node::createSubscriber(std::string_view topic, callback_t<T> cb, size_t queue_size) {
-        auto new_subscriber = std::make_shared<Subscriber<T>>(
-            this,
-            topic, std::move(cb), queue_size
-        );
-
-        return new_subscriber;
-    }
 }
