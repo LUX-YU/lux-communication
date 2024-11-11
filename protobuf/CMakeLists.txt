@@ -1,4 +1,4 @@
-find_package(Protobuf CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)
 
 add_interface_component(
 	COMPONENT_NAME 	protobuf
@@ -12,7 +12,7 @@ component_add_cmake_scripts(
 
 component_add_transitive_commands(
 	protobuf
-	"find_package(Protobuf CONFIG REQUIRED)"
+	"find_package(Protobuf REQUIRED)"
 )
 
 target_link_libraries(
