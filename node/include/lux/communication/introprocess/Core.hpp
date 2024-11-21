@@ -1,10 +1,4 @@
-//
-// Created by lux on 10/6/2024.
-//
-
-#ifndef __CORE_HPP__
-#define __CORE_HPP__
-
+#pragma once
 #include <memory>
 #include <stdexcept>
 #include <unordered_map>
@@ -59,7 +53,7 @@ namespace lux::communication::introprocess {
 
     // The Core class manages TopicDomain instances and provides methods
     // to create, access, and check the existence of TopicDomains by topic name.
-    class Core : public EventHandler<Core>{
+    class LUX_COMMUNICATION_PUBLIC Core : public EventHandler<Core>{
     protected:
         struct MakeSharedCoreHelper{};
         friend class TopicDomainBase;
@@ -68,23 +62,12 @@ namespace lux::communication::introprocess {
     public:
         using parent_t = EventHandler<Core>;
 
-        Core(const MakeSharedCoreHelper& helper, int argc, char* argv[])
-            : Core(argc, argv){}
+        Core(const MakeSharedCoreHelper& helper, int argc, char* argv[]);
 
-        virtual ~Core() {
-            if (ok_) {
-                shutdown();
-            }
-            stop();
-            if (core_thread_.joinable()) {
-                core_thread_.join();
-            }
-        }
+        virtual ~Core();
 
         // Static factory method to create a shared pointer to a new Core instance.
-        [[nodiscard]] static std::shared_ptr<Core> create(int argc, char* argv[]) {
-            return std::make_shared<Core>(MakeSharedCoreHelper{}, argc, argv);
-        }
+        [[nodiscard]] static std::shared_ptr<Core> create(int argc, char* argv[]);
 
         // Retrieves a TopicDomain of type T associated with the given topic_name.
         // If the domain exists and the type matches, it returns the domain.
@@ -157,137 +140,28 @@ namespace lux::communication::introprocess {
             return domain;
         }
 
-        bool ok() const{
-            return ok_;
-        }
+        bool ok() const;
 
-        void init(){
-            std::thread([this]{event_loop();}).swap(core_thread_);
-        }
+        void init();
 
-        void shutdown() {
-            ok_ = false;
-            for (std::weak_ptr<EventHandlerBase> domain : topic_domains_) {
-                domain.lock()->stop();
-            }
+        void shutdown();
 
-            for (EventHandlerBase* node : nodes_) {
-                node->stop();
-            }
-        }
-
-        void shutdown_wait() {
-            ok_ = false;
-            auto future = stop_wait();
-
-            future.get();
-        }
+        void shutdown_wait();
 
     private:
 
-        bool isStop() const {
-			return !ok_;
-		}
+        bool isStop() const;
 
-        bool handle(const CommunicationEvent& event) {
-            switch(event.type){
-                case ECommunicationEvent::DomainClosed:{
-                    auto payload = static_cast<DomainRequestPayload*>(event.payload.get());
-                    auto domain  = static_cast<EventHandlerBase*>(payload->object);
-                    remove_topic_domain(domain);
+        bool handle(const CommunicationEvent& event);
 
-                    payload->promise.set_value();
-                    break;
-                }
-                case ECommunicationEvent::NodeCreated:
-                {
-                    auto payload = static_cast<NodeRequestPayload*>(event.payload.get());
-                    auto node    = static_cast<EventHandlerBase*>(payload->object);
+        void handle_stop_event();
 
-                    nodes_.push_back(node);
+        void remove_topic_domain(EventHandlerBase* ptr);
 
-                    payload->promise.set_value();
-                    break;
-                }
-                case ECommunicationEvent::NodeClosed:
-                {
-                    auto payload = static_cast<NodeRequestPayload*>(event.payload.get());
-                    auto node = static_cast<EventHandlerBase*>(payload->object);
-
-                    remove_node(node);
-
-                    payload->promise.set_value();
-                    break;
-                }
-                case ECommunicationEvent::Stop: {
-                    auto payload = static_cast<Stoppayload*>(event.payload.get());
-                    // stop all sub node
-                    handle_stop_event();
-
-                    payload->promise.set_value();
-                    return false;
-                }
-			}
-
-            return true;
-        }
-
-        void handle_stop_event() {
-            std::vector<std::future<void>> future_list;
-
-            {
-                std::scoped_lock lck(mutex_);
-                future_list.reserve(topic_domains_.size());
-                for (std::weak_ptr<EventHandlerBase> domain : topic_domains_) {
-                    future_list.push_back(domain.lock()->stop_wait());
-                }
-
-                for (auto& future : future_list) {
-                    future.get();
-                }
-                future_list.clear();
-            }
-
-            {
-                std::scoped_lock lck(node_mutex_);
-                future_list.reserve(nodes_.size());
-                for (EventHandlerBase* node : nodes_) {
-                    future_list.push_back(node->stop_wait());
-                }
-                for (auto& future : future_list) {
-                    future.get();
-                }
-            }
-        }
-
-        void remove_topic_domain(EventHandlerBase* ptr) {
-            std::scoped_lock lck(mutex_);
-            auto iter = std::remove_if(
-                topic_domains_.begin(), topic_domains_.end(),
-                [ptr](std::weak_ptr<EventHandlerBase>& p) {
-                    auto domain_ptr = p.lock();
-                    return !domain_ptr || ptr == domain_ptr.get();
-                }
-            );
-            topic_domains_.erase(iter, topic_domains_.end());
-        }
-
-        void remove_node(EventHandlerBase* ptr) {
-            std::scoped_lock lck(node_mutex_);
-            auto iter = std::remove_if(
-                nodes_.begin(), nodes_.end(),
-                [ptr](EventHandlerBase* p) {
-                    return !p || ptr == p;
-                }
-            );
-
-            nodes_.erase(iter, nodes_.end());
-        }
+        void remove_node(EventHandlerBase* ptr);
 
         // Private constructor to enforce the use of the static create method
-        Core(int argc, char* argv[])
-            : parent_t(max_queue_size){}
-
+        Core(int argc, char* argv[]);
 
         std::atomic<bool>                             ok_{true};
         std::thread                                   core_thread_;
@@ -461,5 +335,3 @@ namespace lux::communication::introprocess {
     };
 
 } // namespace lux::communication
-
-#endif // __CORE_HPP__

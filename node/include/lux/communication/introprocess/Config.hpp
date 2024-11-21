@@ -2,7 +2,7 @@
 #include <memory>
 #include <numeric>
 #include <future>
-
+#include <lux/communication/visibility.h>
 #include "lux/cxx/concurrent/BlockingQueue.hpp"
 
 #ifdef __MACRO_USE_LOCKFREE_QUEUE__
@@ -302,7 +302,7 @@ namespace lux::communication::introprocess {
 		Subscriber
 	};
 
-	class PubSubBase {
+	class LUX_COMMUNICATION_PUBLIC PubSubBase {
 	public:
 		friend class Node;
 

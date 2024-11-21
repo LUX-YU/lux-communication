@@ -3,8 +3,10 @@ find_package(stduuid  CONFIG REQUIRED)
 find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time)
 
 set(LUX_COMMUNICATION_NODE_SRC
-	${CMAKE_CURRENT_SOURCE_DIR}/src/Publisher.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/Subscriber.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Core.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Node.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Publisher.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Subscriber.cpp
 )
 
 if(WIN32)
