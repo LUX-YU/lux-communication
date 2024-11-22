@@ -104,6 +104,11 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 	bool ImageS::load(const char* path)
 	{
+		// already has data
+		if (_data) {
+			stbi_image_free(_data);
+		}
+
 		_data = stbi_load(
 			path,
 			&_width,
@@ -125,7 +130,9 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 	ImageS::~ImageS()
 	{
-		stbi_image_free(_data);
+		if (_data) {
+			stbi_image_free(_data);
+		}
 	}
 
 	bool ImageS::isLoaded() const
