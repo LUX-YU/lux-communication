@@ -48,7 +48,23 @@ namespace lux::communication::introprocess
         virtual void spinSome() = 0;
 
         // 持续执行
-        virtual void spin() = 0;
+        virtual void spin()
+        {
+            if (running_)
+                return;
+            running_ = true;
+
+            // 在当前线程中循环
+            while (running_)
+            {
+                spinSome();
+                // 可在这里阻塞，等有新的消息时再继续
+                if (running_)
+                {
+                    waitCondition();
+                }
+            }
+        }
 
         // 停止执行
         virtual void stop() 
@@ -98,24 +114,6 @@ namespace lux::communication::introprocess
         SingleThreadedExecutor() = default;
         ~SingleThreadedExecutor() override{
             stop();
-        }
-
-        void spin() override
-        {
-            if (running_)
-                return;
-            running_ = true;
-
-            // 在当前线程中循环
-            while (running_)
-            {
-                spinSome();
-                // 可在这里阻塞，等有新的消息时再继续
-                if (running_)
-                {
-                    waitCondition();
-                }
-            }
         }
 
         void spinSome() override
@@ -171,24 +169,6 @@ namespace lux::communication::introprocess
         {
             stop();
             thread_pool_.close();  // 等待线程池里的所有任务结束
-        }
-
-        void spin() override
-        {
-            // 防止重复启动
-            if (running_)
-                return;
-            running_ = true;
-
-            while (running_)
-            {
-                spinSome();  // 执行（或分发）回调
-                if (running_)
-                {
-                    // 若依然在运行，则阻塞等待下一次唤醒
-                    waitCondition();
-                }
-            }
         }
 
         void spinSome() override

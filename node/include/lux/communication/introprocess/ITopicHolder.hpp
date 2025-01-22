@@ -2,6 +2,7 @@
 
 #include <string>
 #include <typeindex>
+#include <atomic>
 #include <lux/cxx/compile_time/type_info.hpp>
 
 namespace lux::communication::introprocess
@@ -20,13 +21,14 @@ namespace lux::communication::introprocess
         // 引用计数 +1
         void incRef()
         {
-            ++_refCount;
+            _refCount.fetch_add(1, std::memory_order_relaxed);
         }
 
         // 引用计数 -1
         void decRef()
         {
-            if (--_refCount == 0)
+            _refCount.fetch_sub(1, std::memory_order_acq_rel);
+            if (_refCount.load(std::memory_order_acquire) == 0)
             {
                 onNoRef();
             }
@@ -43,6 +45,6 @@ namespace lux::communication::introprocess
         virtual void onNoRef() = 0;
 
     protected:
-        int _refCount{0};
+        std::atomic<int> _refCount{0};
     };
 }
