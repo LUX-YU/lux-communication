@@ -1,99 +1,92 @@
 #pragma once
-#include <cstddef>
 
-#include "lux/communication/introprocess/Core.hpp"
-#include "lux/communication/introprocess/Node.hpp"
+#include <string>
+#include <memory>
+#include <cassert>
+#include "RcBuffer.hpp"
+#include "Topic.hpp"
 
-namespace lux::communication::introprocess{
-    template<class T>
-    class Publisher : public CrtpPublisher<Publisher<T>, T>{
-        friend class CrtpPublisher<Publisher<T>, T>;
+namespace lux::communication::introprocess
+{
+    class Node;
+    template <typename T>
+    class Publisher
+    {
     public:
-        using domain_t      = TopicDomain<T>;
-        using domain_ptr_t  = std::shared_ptr<domain_t>;
-        using parent_t      = CrtpPublisher<Publisher<T>, T>;
-        using node_ptr_t    = typename parent_t::node_ptr_t;
+        friend class Node;
 
-        Publisher(node_ptr_t node, std::string_view topic, size_t queue_size)
-            : parent_t(std::move(node), EPubSub::Publisher), max_size_(queue_size), queue_(queue_size) {
-            auto& core = parent_t::node_->core();
-            auto domain = core.template getDomain<T>(topic);
-            if (!domain) {
-                domain = core.template createDomain<T>(topic);
-            }
-
-            auto payload = std::make_unique<PublisherRequestPayload>();
-            payload->object = this;
-            auto future = domain->template request<ECommunicationEvent::PublisherJoin>(std::move(payload));
-            future.wait();
-
-            domain_ = std::move(domain);
+        // 只有 Node 能调用的构造
+        Publisher(class Node *node, int pubId, Topic<T> *topic)
+            : node_(node), pub_id_(pubId), topic_(topic)
+        {
+            assert(topic_);
+            topic_->incRef(); // 对应在析构时 decRef()
         }
 
-        ~Publisher() override {
-            queue_close(queue_);
-            auto payload = std::make_unique<PublisherRequestPayload>();
-            payload->object = this;
+        ~Publisher();
 
-            auto future = domain_->template request<ECommunicationEvent::PublisherLeave>(std::move(payload));
+        // 禁用拷贝
+        Publisher(const Publisher &) = delete;
+        Publisher &operator=(const Publisher &) = delete;
 
-            future.get();
-        };
-
-        void pub(message_t<T> message) {
-            if (exit_ || !queue_push(queue_, std::move(message))) {
-                return;
+        // 允许移动
+        Publisher(Publisher &&rhs) noexcept
+        {
+            moveFrom(std::move(rhs));
+        }
+        
+        Publisher &operator=(Publisher &&rhs) noexcept
+        {
+            if (this != &rhs)
+            {
+                cleanup();
+                moveFrom(std::move(rhs));
             }
-            auto payload = std::make_unique<PublisherPayload>();
-            payload->object = this;
-            domain_->template notify<ECommunicationEvent::PublisherNewData>(std::move(payload));
+            return *this;
         }
 
-        void pub_bulk(std::vector<message_t<T>>& messages) {
-            if (messages.empty() || exit_) return;
-            if (!queue_push_bulk(queue_, messages)) {
-                return;
+        // 发消息
+        template <class... Args>
+        void emplacePublish(Args&&... args)
+        {
+            if (topic_)
+            {
+                auto ptr = makeRcUnique<T>(std::forward<Args>(args)...);
+                topic_->publish(std::move(ptr));
             }
-            auto payload = std::make_unique<PublisherPayload>();
-            payload->object = this;
-            domain_->template notify<ECommunicationEvent::PublisherNewData>(std::move(payload));
         }
 
+        // send message, perfect forwarding
         template<typename U>
-        void pub(U&& message) {
-            if (exit_) {
-                return;
+        void publish(U&& msg)
+        {
+            if (topic_)
+            {
+                auto ptr = makeRcUnique<T>(std::forward<U>(msg));
+                topic_->publish(std::move(ptr));
             }
-            pub(make_message(T, std::forward<U>(message)));
         }
 
-        const size_t capacity() const {
-            return max_size_;
-        }
+        // 获取本 Publisher ID
+        int getId() const { return pub_id_; }
 
-        std::shared_ptr<TopicDomainBase> domain() override {
-            return domain_;
+    private:
+        void cleanup();
+
+        void moveFrom(Publisher &&rhs)
+        {
+            node_ = rhs.node_;
+            pub_id_ = rhs.pub_id_;
+            topic_ = rhs.topic_;
+
+            rhs.node_ = nullptr;
+            rhs.topic_ = nullptr;
+            rhs.pub_id_ = -1;
         }
 
     private:
-        void stop() override {
-            exit_ = true;
-			queue_close(queue_);
-		}
-
-        // crtp
-        size_t pop_bulk(std::vector<message_t<T>>& messages, size_t max_count) {
-            return queue_pop_bulk(queue_, messages, max_count);
-        }
-
-        // crtp implement
-        bool pop(message_t<T>& message) {
-            return queue_try_pop(queue_, message);
-        }
-
-        bool                  exit_{false};
-        domain_ptr_t          domain_;
-        size_t                max_size_;
-        queue_t<message_t<T>> queue_;
+        class Node* node_{nullptr};
+        int         pub_id_{-1};
+        Topic<T>*   topic_{nullptr};
     };
 }

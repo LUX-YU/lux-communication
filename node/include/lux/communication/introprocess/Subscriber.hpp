@@ -1,93 +1,126 @@
 #pragma once
-#include <cstddef>
 #include <functional>
+#include <memory>
+#include "Queue.hpp"
+#include "Topic.hpp"
+#include "SubscriberBase.hpp"
+#include "CallbackGroup.hpp"
 
-#include "lux/communication/introprocess/Core.hpp"
-#include "lux/communication/introprocess/Node.hpp"
+namespace lux::communication::introprocess
+{
+    template <typename T>
+    using SubscriberCallback = std::function<void(std::unique_ptr<T, RcDeleter<T>>)>;
 
-namespace lux::communication::introprocess {
-    template<class T>
-    class Subscriber : public CrtpSubscriber<Subscriber<T>, T>{
-        friend class Node;
-        friend class CrtpSubscriber<Subscriber<T>, T>;
+    template <typename T>
+    struct SubscriberData
+    {
+        bool inUse{false};
+        int nextFree{-1};
+        SubscriberCallback<T> callback; // 回调
+    };
+
+    class Node; // 前置声明
+    template <typename T>
+    class Subscriber : public ISubscriberBase
+    {
     public:
-        using domain_t      = TopicDomain<T>;
-        using domain_ptr_t  = std::shared_ptr<domain_t>;
-        using callback_t    = typename Node::callback_t<T>;
-        using parent_t      = CrtpSubscriber<Subscriber<T>, T>;
-        using node_ptr_t    = typename parent_t::node_ptr_t;
+        using Callback = std::function<void(const T &)>;
 
-        Subscriber(node_ptr_t node, std::string_view topic, callback_t callback,  size_t queue_size)
-            : parent_t(std::move(node)), callback_(std::move(callback)), max_size_(queue_size), queue_(queue_size) {
-            auto& core = parent_t::node_->core();
-            auto domain = core.template getDomain<T>(topic);
-            if (!domain) {
-                domain = core.template createDomain<T>(topic);
+        friend class Node; // 或者 friend class Node (模板特化看设计)
+
+        Subscriber(class Node *node, int sub_id, Topic<T> *topic, Callback cb, std::shared_ptr<CallbackGroup> callback_group)
+            : node_(node), sub_id_(sub_id), topic_(topic), callback_(std::move(cb)), callback_group_(std::move(callback_group))
+        {
+            topic_->incRef();
+            topic_->addSubscriber(this);
+        }
+
+        ~Subscriber();
+
+        Subscriber(const Subscriber &) = delete;
+        Subscriber &operator=(const Subscriber &) = delete;
+
+        Subscriber(Subscriber &&rhs) noexcept
+        {
+            moveFrom(std::move(rhs));
+        }
+
+        Subscriber &operator=(Subscriber &&rhs) noexcept
+        {
+            if (this != &rhs)
+            {
+                cleanup();
+                moveFrom(std::move(rhs));
             }
-
-            auto payload = std::make_unique<SubscriberRequestPayload>();
-            payload->object = this;
-            auto future = domain->template request<ECommunicationEvent::SubscriberJoin>(std::move(payload));
-            future.wait();
-
-            domain_ = std::move(domain);
+            return *this;
         }
 
-        ~Subscriber() override {
-            queue_close(queue_);
-            auto payload = std::make_unique<SubscriberRequestPayload>();
-            payload->object = this;
+        // Topic 调用的入队接口
+        void enqueue(std::unique_ptr<T, RcDeleter<T>> msg)
+        {
+            push(queue_, std::move(msg));
 
-            auto future = domain_->template request<ECommunicationEvent::SubscriberLeave>(std::move(payload));
-            
-            future.wait();
-        };
-
-        const size_t capacity() const {
-            return max_size_;
+            if (callback_group_ && setReadyIfNot())
+            {
+                callback_group_->notify(this);
+            }
         }
 
-        std::shared_ptr<TopicDomainBase> domain() override {
-            return domain_;
-        }
-
-        void popAndDoCallback() override {
-            std::vector<message_t<T>> messages;
-            size_t count = queue_pop_bulk(queue_, messages, queue_batch_size);
-            if (count > 0 && callback_) {
-                for (auto& message : messages) {
-                    callback_(std::move(message));
+        // 给 Node spinOnce() 调用
+        void takeAll() override
+        {
+            std::unique_ptr<T, RcDeleter<T>> msg;
+            while (try_pop(queue_, msg))
+            {
+                if (callback_)
+                {
+                    callback_(*msg);
                 }
             }
+
+            clearReady();
+        }
+
+        int getId() const { return sub_id_; }
+
+        bool setReadyIfNot() override
+        {
+            bool expected = false;
+            // 如果原先是 false，就把它置为 true 并返回 true
+            // 如果原先已是 true，则返回 false
+            return ready_flag_.compare_exchange_strong(expected, true,
+                    std::memory_order_acq_rel, std::memory_order_acquire);
+        }
+
+        void clearReady() override
+        {
+            ready_flag_.store(false, std::memory_order_release);
         }
 
     private:
-        void stop() override {
-            queue_close(queue_);
+        void cleanup();
+
+        void moveFrom(Subscriber &&rhs)
+        {
+            node_      = rhs.node_;
+            sub_id_    = rhs.sub_id_;
+            topic_     = rhs.topic_;
+            callback_  = std::move(rhs.callback_);
+
+            rhs.node_  = nullptr;
+            rhs.topic_ = nullptr;
+            rhs.sub_id_ = -1;
         }
 
-        // crtp
-        void push_bulk(std::vector<message_t<T>>& messages) {
-            queue_push_bulk(queue_, messages);
-            auto payload = std::make_unique<SubscriberPayload>();
-            payload->object = this;
-            parent_t::node_->template notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
-        }
+    private:
+        class Node* node_{nullptr};
+        int         sub_id_{-1};
+        Topic<T>*   topic_{nullptr};
+        Callback    callback_;
+        std::atomic<bool> ready_flag_{false};
+        
+        std::shared_ptr<CallbackGroup> callback_group_;
 
-        // crtp
-        bool push(message_t<T> message) {
-            if (queue_try_push(queue_, std::move(message))) {
-                auto payload = std::make_unique<SubscriberPayload>();
-                payload->object = this;
-                parent_t::node_->template notify<ECommunicationEvent::SubscriberNewData>(std::move(payload));
-            }
-
-            return false;
-        }
-
-        callback_t                   callback_;
-        domain_ptr_t                 domain_;
-        size_t                       max_size_;
-        queue_t<std::unique_ptr<T>>  queue_;
+        queue_t<T>  queue_;
     };
 }
