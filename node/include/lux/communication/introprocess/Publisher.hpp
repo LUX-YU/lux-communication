@@ -15,7 +15,7 @@ namespace lux::communication::introprocess
     public:
         friend class Node;
 
-        // 只有 Node 能调用的构造
+        // 只有 Node 能调用的构造14
         Publisher(class Node *node, int pubId, Topic<T> *topic)
             : node_(node), pub_id_(pubId), topic_(topic)
         {
