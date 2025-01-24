@@ -15,21 +15,21 @@ namespace lux::communication::introprocess
     public:
         friend class Node;
 
-        // 只有 Node 能调用的构造14
+        // Only Node can call this constructor
         Publisher(class Node *node, int pubId, Topic<T> *topic)
             : node_(node), pub_id_(pubId), topic_(topic)
         {
             assert(topic_);
-            topic_->incRef(); // 对应在析构时 decRef()
+            topic_->incRef(); // Corresponds to decRef() in destructor
         }
 
         ~Publisher();
 
-        // 禁用拷贝
+        // Copy is disabled
         Publisher(const Publisher &) = delete;
         Publisher &operator=(const Publisher &) = delete;
 
-        // 允许移动
+        // Move is allowed
         Publisher(Publisher &&rhs) noexcept
         {
             moveFrom(std::move(rhs));
@@ -45,7 +45,7 @@ namespace lux::communication::introprocess
             return *this;
         }
 
-        // 发消息
+        // Publish a message with in-place construction
         template <class... Args>
         void emplacePublish(Args&&... args)
         {
@@ -56,7 +56,7 @@ namespace lux::communication::introprocess
             }
         }
 
-        // send message, perfect forwarding
+        // Send message, perfect forwarding
         template<typename U>
         void publish(U&& msg)
         {
@@ -67,7 +67,7 @@ namespace lux::communication::introprocess
             }
         }
 
-        // 获取本 Publisher ID
+        // Get this Publisher's ID
         int getId() const { return pub_id_; }
 
     private:

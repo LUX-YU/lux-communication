@@ -4,65 +4,65 @@
 
 namespace lux::communication::introprocess
 {
-    // 你可以根据项目情况自定义 SBO 缓冲大小
+    // You can customize the SBO buffer size according to your project
     constexpr std::size_t DEFAULT_SBO_SIZE = 40;
 
     template <typename T>
     struct RcBuffer
     {
         std::atomic<int> refCount{1};
-        // 指向实际对象的指针，无论是在内置缓冲中还是堆上分配，都会赋给 data
+        // Pointer to the actual object, whether it's in the internal buffer or allocated on the heap
         T * data = nullptr;
 
-        // 是否使用SBO
+        // Whether using SBO
         bool inPlace = false;
 
-        // 预留一块对齐存储
+        // Reserve an aligned storage
         static constexpr std::size_t SBO_SIZE = DEFAULT_SBO_SIZE;
         alignas(T) unsigned char sbo_[SBO_SIZE]; 
-        // 或者用 std::aligned_storage_t<SBO_SIZE, alignof(T)> sbo_;
+        // Or use std::aligned_storage_t<SBO_SIZE, alignof(T)> sbo_;
 
-        // 这里可以保留一个默认构造函数，但要注意必须之后再手动构造 T
+        // We can keep a default constructor here, but note that T must be constructed manually afterward
         RcBuffer() = default;
 
-        // 为了在 "makeRcUnique" 里统一使用，我们也可以给一个可变参构造
+        // In order to use it uniformly in "makeRcUnique", we can also provide a variadic constructor
         template <class... Args>
         RcBuffer(Args&&... args)
         {
             construct(std::forward<Args>(args)...);
         }
 
-        // 手动构造T
+        // Manually construct T
         template <class... Args>
         void construct(Args&&... args)
         {
-            // 判断是否符合在SBO里放置
+            // Check if it fits in the SBO
             if constexpr (std::is_nothrow_move_constructible_v<T> || std::is_nothrow_constructible_v<T, Args...>)
             {
                 if (sizeof(T) <= SBO_SIZE && alignof(T) <= alignof(std::max_align_t))
                 {
-                    // 进入SBO
+                    // Use SBO
                     data = reinterpret_cast<T*>(&sbo_[0]);
                     inPlace = true;
                     new (data) T(std::forward<Args>(args)...);  // placement new
                     return;
                 }
             }
-            // 否则 fallback 到堆分配
+            // Otherwise, fallback to heap allocation
             data = new T(std::forward<Args>(args)...);
             inPlace = false;
         }
 
-        // 析构：若 inPlace 则只调用 T 的析构，否则 delete
+        // Destruction: if inPlace, only call T's destructor; otherwise delete
         ~RcBuffer()
         {
             if (inPlace)
             {
-                data->~T();      // 手动析构
+                data->~T();
             }
             else
             {
-                delete data;     // 删除堆内对象
+                delete data;
             }
         }
     };
@@ -74,10 +74,10 @@ namespace lux::communication::introprocess
 
         void operator()(T *ptr) noexcept
         {
-            // refCount 归零时，释放 RcBuffer<T>
+            // When refCount reaches zero, release RcBuffer<T>
             if (rcBuf->refCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
             {
-                // 这时才调用 RcBuffer<T> 的析构
+                // Only then call RcBuffer<T>'s destructor
                 delete rcBuf;
             }
         }
@@ -86,13 +86,13 @@ namespace lux::communication::introprocess
     template <typename T, class... Args>
     std::unique_ptr<T, RcDeleter<T>> makeRcUnique(Args&&... args)
     {
-        // 直接 new 一个 RcBuffer<T>，构造时就决定是否 SBO
+        // Directly new a RcBuffer<T>, decide whether to use SBO during construction
         auto rc = new RcBuffer<T>(std::forward<Args>(args)...);
 
-        // refCount 默认就是 1，这里可以再设一次
+        // refCount is already 1 by default, we can set it once more here if needed
         rc->refCount.store(1, std::memory_order_relaxed);
 
-        // 返回 unique_ptr
+        // Return a unique_ptr
         return std::unique_ptr<T, RcDeleter<T>>(rc->data, RcDeleter<T>{rc});
     }
 

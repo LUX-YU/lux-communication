@@ -12,19 +12,19 @@ namespace lux::communication::introprocess
     public:
         virtual ~ITopicHolder() = default;
 
-        // 每个 Topic 有一个唯一名称
+        // Each Topic has a unique name
         virtual const std::string &getTopicName() const = 0;
 
-        // 用于区分不同类型的Topic
+        // Used to distinguish different Topic types
         virtual lux::cxx::basic_type_info getType() const = 0;
 
-        // 引用计数 +1
+        // Reference count +1
         void incRef()
         {
             _refCount.fetch_add(1, std::memory_order_relaxed);
         }
 
-        // 引用计数 -1
+        // Reference count -1
         void decRef()
         {
             _refCount.fetch_sub(1, std::memory_order_acq_rel);
@@ -34,14 +34,14 @@ namespace lux::communication::introprocess
             }
         }
 
-        // 当前引用计数
+        // Current reference count
         int refCount() const
         {
             return _refCount;
         }
 
     protected:
-        // 当引用计数归零时，交给子类做处理
+        // When reference count reaches zero, let subclasses handle it
         virtual void onNoRef() = 0;
 
     protected:

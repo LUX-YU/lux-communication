@@ -16,17 +16,17 @@ namespace lux::communication::introprocess
     {
         bool inUse{false};
         int nextFree{-1};
-        SubscriberCallback<T> callback; // 回调
+        SubscriberCallback<T> callback; // Callback
     };
 
-    class Node; // 前置声明
+    class Node; // Forward declaration
     template <typename T>
     class Subscriber : public ISubscriberBase
     {
     public:
         using Callback = std::function<void(const T &)>;
 
-        friend class Node; // 或者 friend class Node (模板特化看设计)
+        friend class Node; // or friend class Node (depending on design)
 
         Subscriber(class Node *node, int sub_id, Topic<T> *topic, Callback cb, std::shared_ptr<CallbackGroup> callback_group)
             : node_(node), sub_id_(sub_id), topic_(topic), callback_(std::move(cb)), callback_group_(std::move(callback_group))
@@ -55,7 +55,7 @@ namespace lux::communication::introprocess
             return *this;
         }
 
-        // Topic 调用的入队接口
+        // The interface called by Topic when a new message arrives
         void enqueue(std::unique_ptr<T, RcDeleter<T>> msg)
         {
             push(queue_, std::move(msg));
@@ -66,7 +66,7 @@ namespace lux::communication::introprocess
             }
         }
 
-        // 给 Node spinOnce() 调用
+        // Called by Node spinOnce()
         void takeAll() override
         {
             std::unique_ptr<T, RcDeleter<T>> msg;
@@ -86,8 +86,8 @@ namespace lux::communication::introprocess
         bool setReadyIfNot() override
         {
             bool expected = false;
-            // 如果原先是 false，就把它置为 true 并返回 true
-            // 如果原先已是 true，则返回 false
+            // If originally false, set to true and return true
+            // If already true, return false
             return ready_flag_.compare_exchange_strong(expected, true,
                     std::memory_order_acq_rel, std::memory_order_acquire);
         }

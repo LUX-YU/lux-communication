@@ -527,7 +527,7 @@ void testMultiThreadedExecutorBasic(int threadCount = 4, int messageCount = 5000
         auto s = node->createSubscriber<StringMsg>("multi_thread_topic",
             [&, idx = i](const StringMsg &msg){
                 // 做一些模拟开销
-                std::this_thread::sleep_for(std::chrono::microseconds(50));
+                // std::this_thread::sleep_for(std::chrono::microseconds(50));
                 counters[idx].fetch_add(1, std::memory_order_relaxed);
             }
         );
@@ -561,7 +561,7 @@ void testMultiThreadedExecutorBasic(int threadCount = 4, int messageCount = 5000
         if (sum >= totalNeeded) {
             break;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
     auto t2 = std::chrono::steady_clock::now();
 

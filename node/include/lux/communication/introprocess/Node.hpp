@@ -37,7 +37,7 @@ namespace lux::communication::introprocess
             return default_callback_group_;
         }
 
-        // 创建 Publisher
+        // Create a Publisher
         template <typename T>
         std::shared_ptr<Publisher<T>> createPublisher(const std::string &topic_name)
         {
@@ -56,13 +56,13 @@ namespace lux::communication::introprocess
 
             int dense_index = (int)pub_records_.size();
 
-            // 在 domain 中创建或获取 topic
+            // Create or get the topic in domain
             auto topic_ptr = domain_->createOrGetTopic<T>(topic_name);
 
-            // 构造 Publisher
+            // Construct Publisher
             auto pub = std::make_shared<Publisher<T>>(this, pub_id, topic_ptr);
 
-            // 记录到 Node 的 pub_records_ 中
+            // Record it in Node's pub_records_
             PublisherRecord pub_record{
                 .id         = pub_id,
                 .topic_name = topic_name,
@@ -75,7 +75,7 @@ namespace lux::communication::introprocess
             return pub;
         }
 
-        // 创建 Subscriber
+        // Create a Subscriber
         template <typename T, typename Func>
         std::shared_ptr<Subscriber<T>> createSubscriber(
             const std::string &topic_name, Func&& cb, std::shared_ptr<CallbackGroup> group = nullptr)
@@ -101,7 +101,7 @@ namespace lux::communication::introprocess
 
             auto sub = std::make_shared<Subscriber<T>>(this, sub_id, topic_ptr, std::forward<Func>(cb), std::move(group));
 
-            // 记录到 Node 的 sub_records_
+            // Record it in Node's sub_records_
             SubscriberRecord sub_record{
                 .id         = sub_id,
                 .topic_name = topic_name,
@@ -118,7 +118,7 @@ namespace lux::communication::introprocess
             return sub;
         }
 
-        // 移除一个 Publisher
+        // Remove a Publisher
         void removePublisher(int pub_id)
         {
             std::lock_guard<std::mutex> lock(mutex_pub_);
@@ -138,7 +138,7 @@ namespace lux::communication::introprocess
             free_pub_ids_.push_back(pub_id);
         }
 
-        // 移除一个 Subscriber
+        // Remove a Subscriber
         void removeSubscriber(int sub_id)
         {
             std::lock_guard<std::mutex> lock(mutex_sub_);
@@ -158,36 +158,7 @@ namespace lux::communication::introprocess
             free_sub_ids_.push_back(sub_id);
         }
 
-        // spinOnce：调用所有 sub 的 spin_fn
-        // void spinOnce()
-        // {
-        //     // 为了减少锁的时间，先复制出一份 function
-        //     std::vector<std::function<void()>> localSpin_fns;
-        //     {
-        //         std::lock_guard<std::mutex> lock(mutex_sub_);
-        //         localSpin_fns.reserve(sub_records_.size());
-        //         for (auto &r : sub_records_)
-        //         {
-        //             localSpin_fns.push_back(r.spin_fn);
-        //         }
-        //     }
-        //     // 逐个调用
-        //     for (auto &fn : localSpin_fns)
-        //     {
-        //         fn();
-        //     }
-        // }
-
-        // // 简单的 spin
-        // void spin()
-        // {
-        //     running_ = true;
-        //     while (running_)
-        //     {
-        //         spinOnce();
-        //     }
-        // }
-
+        // Stopping the Node
         void stop()
         {
             running_ = false;
@@ -206,7 +177,7 @@ namespace lux::communication::introprocess
             int                         id;
             std::string                 topic_name;
             lux::cxx::basic_type_info   type_info;
-            // spinOnce时需要调用的函数
+            // The function called during spinOnce
             std::function<void()>       spin_fn;
         };
 
@@ -238,7 +209,7 @@ namespace lux::communication::introprocess
             {
                 node_->removePublisher(pub_id_);
             }
-            topic_->decRef(); // 减少对 Topic 的引用
+            topic_->decRef(); // Reduce reference to Topic
             topic_ = nullptr;
         }
     }
@@ -263,7 +234,7 @@ namespace lux::communication::introprocess
     {
         if (topic_)
         {
-            // 通知 Node 将我移除
+            // Notify Node to remove me
             if (node_)
             {
                 node_->removeSubscriber(sub_id_);
@@ -300,13 +271,13 @@ namespace lux::communication::introprocess
     void Executor::addNode(std::shared_ptr<Node> node)
     {
         if (!node) return;
-        // 比如把 node 的默认回调组添加到 Executor
+        // For example, add the node's default callback group to the Executor
         auto default_group = node->getDefaultCallbackGroup();
         if (default_group)
         {
             addCallbackGroup(default_group);
         }
-        // 如果你想更细粒度地把该 node 下所有 subscriber 的
-        // callbackGroup 都加进来，可以在 Node 里做更复杂的接口。
+        // If you want to add all subscriber callback groups under the node more granularly,
+        // you can implement more complex interfaces in Node.
     }
 }

@@ -10,29 +10,29 @@
 
 namespace lux::communication::introprocess
 {
-    // 前置声明
+    // Forward declaration
     class Domain;
     template <typename T>
     class Subscriber;
 
     //-------------------------------------------
-    // 1) 一个不可变的 SubscriberList + 引用计数
+    // 1) An immutable SubscriberList + reference counting
     //-------------------------------------------
     namespace detail
     {
         template <typename T>
         struct SubscriberList
         {
-            // 引用计数
+            // Reference count
             std::atomic<int> refCount{1};
 
-            // 实际的订阅者数组
+            // Actual array of subscribers
             std::vector<Subscriber<T>*> subs;
 
-            // 默认构造
+            // Default constructor
             SubscriberList() = default;
 
-            // 拷贝构造 (复制 subs，但 refCount 为 1)
+            // Copy constructor (copy subs, but refCount = 1)
             SubscriberList(const SubscriberList &other)
                 : subs(other.subs)
             {
@@ -40,7 +40,7 @@ namespace lux::communication::introprocess
             }
         };
 
-        // 帮助函数：增加引用
+        // Helper function: add reference
         template <typename T>
         inline void incRef(SubscriberList<T>* p)
         {
@@ -49,7 +49,7 @@ namespace lux::communication::introprocess
             }
         }
 
-        // 帮助函数：减少引用，若减到 0 则 delete
+        // Helper function: decrease reference, if it drops to 0 then delete
         template <typename T>
         inline void decRef(SubscriberList<T>* p)
         {
@@ -63,8 +63,8 @@ namespace lux::communication::introprocess
     } // namespace detail
 
     /**
-     * @brief 用于存放某个特定类型T的所有订阅者列表，并分发零拷贝消息
-     *        采用 Copy-On-Write 方式管理订阅者数组
+     * @brief Holds all subscribers of a specific type T, and distribute zero-copy messages.
+     *        Uses a Copy-On-Write approach to manage subscriber arrays.
      */
     template <typename T>
     class Topic : public ITopicHolder
@@ -75,8 +75,8 @@ namespace lux::communication::introprocess
         Topic(const std::string &name, Domain *owner)
             : name_(name), domain_(owner)
         {
-            // refCount 初始为0，需要外部 incRef() 才能使用
-            // 初始化一个空列表
+            // refCount starts at 0, external incRef() is required
+            // Initialize an empty list
             using ListType = detail::SubscriberList<T>;
             auto emptyList = new ListType();
             subs_.store(emptyList, std::memory_order_release);
@@ -84,25 +84,25 @@ namespace lux::communication::introprocess
 
         ~Topic() override
         {
-            // 析构时，释放当前 subs_ 指向的列表
+            // Release current subs_ pointer on destruction
             auto ptr = subs_.load(std::memory_order_acquire);
             detail::decRef(ptr);
         }
 
-        // ITopicHolder 接口: topic 名称
+        // ITopicHolder interface: topic name
         const std::string &getTopicName() const override
         {
             return name_;
         }
 
-        // ITopicHolder 接口: topic 类型
+        // ITopicHolder interface: topic type
         lux::cxx::basic_type_info getType() const override
         {
             return type_info;
         }
 
         /**
-         * @brief 注册订阅者
+         * @brief Register a subscriber
          */
         void addSubscriber(Subscriber<T> *sub)
         {
@@ -110,12 +110,12 @@ namespace lux::communication::introprocess
                 auto oldPtr = subs_.load(std::memory_order_acquire);
                 detail::incRef(oldPtr);
 
-                // 复制一份
+                // Make a copy
                 auto newPtr = new detail::SubscriberList<T>(*oldPtr);
-                // 在副本上添加
+                // Add subscriber to the copy
                 newPtr->subs.push_back(sub);
 
-                // 这里是 CAS
+                // CAS
                 if (subs_.compare_exchange_weak(oldPtr, newPtr,
                     std::memory_order_release,
                     std::memory_order_relaxed))
@@ -124,14 +124,14 @@ namespace lux::communication::introprocess
                     break; // success
                 }
 
-                // CAS 失败，说明有并发写，把 newPtr 删除
+                // CAS failed, which means there was concurrent modification
                 delete newPtr;
                 detail::decRef(oldPtr);
             }
         }
 
         /**
-         * @brief 注销订阅者
+         * @brief Unregister a subscriber
          */
         void removeSubscriber(Subscriber<T> *sub)
         {
@@ -139,10 +139,10 @@ namespace lux::communication::introprocess
                 auto oldPtr = subs_.load(std::memory_order_acquire);
                 detail::incRef(oldPtr);
 
-                // 复制一份
+                // Make a copy
                 auto newPtr = new detail::SubscriberList<T>(*oldPtr);
 
-                // 移除 sub (swap-and-pop)
+                // Remove sub (swap-and-pop)
                 auto &vec = newPtr->subs;
                 auto it = std::find(vec.begin(), vec.end(), sub);
                 if (it != vec.end()) {
@@ -154,25 +154,25 @@ namespace lux::communication::introprocess
                     std::memory_order_release,
                     std::memory_order_relaxed))
                 {
-                    // 成功了才 break
+                    // Success
                     detail::decRef(oldPtr);
                     break;
                 }
         
-                // CAS 失败，说明有并发写，需要重试
+                // CAS failed, meaning concurrent modification, need to retry
                 delete newPtr;
                 detail::decRef(oldPtr);
             }
         }
 
         /**
-         * @brief 分发消息 (零拷贝)
-         *        只需要原子加载 subs_ 并遍历，无需加锁
+         * @brief Distribute messages (zero-copy)
+         *        Just atomically load subs_ and iterate, no locking needed
          */
         void publish(std::unique_ptr<T, RcDeleter<T>> msg)
         {
             auto listPtr = subs_.load(std::memory_order_acquire);
-            detail::incRef(listPtr);  // 防止并发 remove/替换导致 listPtr 被释放
+            detail::incRef(listPtr);  // Prevent listPtr from being freed by concurrent remove
 
             for (auto* sub : listPtr->subs)
             {
@@ -183,14 +183,14 @@ namespace lux::communication::introprocess
                 }
             }
 
-            detail::decRef(listPtr);  // 遍历完释放
-            // msg 出作用域 refCount -1
+            detail::decRef(listPtr);  // Done iterating
+            // msg goes out of scope, refCount -1
         }
 
     protected:
         /**
-         * @brief 当引用计数归零时，由 Domain 移除
-         *        需要 Domain 在 removeTopic(this) 里把这个 Topic 的资源清理掉
+         * @brief When reference count reaches zero, let Domain remove it
+         *        Domain removes this Topic's resources in removeTopic(this)
          */
         void onNoRef() override;
 
@@ -198,7 +198,7 @@ namespace lux::communication::introprocess
         std::string                name_;
         Domain*                    domain_;
 
-        // 原子指针，指向不可变的 "SubscriberList"
+        // Atomic pointer to an immutable "SubscriberList"
         std::atomic<detail::SubscriberList<T>*> subs_;
     };
 } // namespace lux::communication::introprocess

@@ -15,7 +15,7 @@
 
 namespace lux::communication::introprocess
 {
-    class Node; // 前置声明
+    class Node; // Forward declaration
 
     class Executor : public std::enable_shared_from_this<Executor>
     {
@@ -23,42 +23,42 @@ namespace lux::communication::introprocess
         Executor() : running_(false) {}
         virtual ~Executor() { stop(); }
 
-        // 添加一个回调组
+        // Add a callback group
         virtual void addCallbackGroup(std::shared_ptr<CallbackGroup> group)
         {
             std::lock_guard<std::mutex> lock(mutex_);
             callback_groups_.insert(group);
-            // 让回调组知道它属于哪个 Executor
+            // Let the callback group know which Executor it belongs to
             group->setExecutor(shared_from_this());
         }
 
-        // 移除一个回调组
+        // Remove a callback group
         virtual void removeCallbackGroup(std::shared_ptr<CallbackGroup> group)
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            // 在移除之前，可以先把 group->setExecutor(nullptr);
+            // Before removing, you could call group->setExecutor(nullptr);
             callback_groups_.erase(group);
         }
 
-        // 如果想让 Node 在 Executor 上跑，就可以加个 addNode
-        // 这里可以选择把 Node 内所有 Subscriber 的回调组都加进来
+        // If you want the Node to run on this Executor, you can add an addNode
+        // You can choose to add the callback groups of all Subscribers under the Node
         virtual void addNode(std::shared_ptr<Node> node);
 
-        // 单次执行：取出所有就绪的 Subscriber 并执行其回调
+        // Execute once: retrieve all ready Subscribers and run their callbacks
         virtual void spinSome() = 0;
 
-        // 持续执行
+        // Keep executing
         virtual void spin()
         {
             if (running_)
                 return;
             running_ = true;
 
-            // 在当前线程中循环
+            // Loop in the current thread
             while (running_)
             {
                 spinSome();
-                // 可在这里阻塞，等有新的消息时再继续
+                // We can block here and continue when new messages arrive
                 if (running_)
                 {
                     waitCondition();
@@ -66,35 +66,35 @@ namespace lux::communication::introprocess
             }
         }
 
-        // 停止执行
+        // Stop execution
         virtual void stop() 
         {
             running_ = false;
             notifyCondition();
         }
 
-        // 唤醒 Executor
+        // Wake up the Executor
         virtual void wakeup()
         {
             notifyCondition();
         }
 
     protected:
-        // 给子类用的：等待条件
+        // For subclasses: wait for condition
         void waitCondition()
         {
             std::unique_lock<std::mutex> lock(cv_mutex_);
             cv_.wait(lock, [this] { return !running_.load() || checkRunnable(); });
         }
 
-        // 唤醒
+        // Notify/wake up
         void notifyCondition()
         {
             std::lock_guard<std::mutex> lock(cv_mutex_);
             cv_.notify_all();
         }
 
-        // 检查是否有可运行的回调（子类可实现具体逻辑）
+        // Check if there is any runnable callback (subclass can implement details)
         virtual bool checkRunnable() { return false; }
 
         std::atomic<bool>       running_;
@@ -103,11 +103,11 @@ namespace lux::communication::introprocess
         std::condition_variable cv_;
 
         std::mutex              mutex_;
-        // 记录所有回调组
+        // Store all callback groups
         std::unordered_set<std::shared_ptr<CallbackGroup>> callback_groups_;
     };
 
-    // 单线程执行器示例
+    // Example of a single-threaded executor
     class SingleThreadedExecutor : public Executor
     {
     public:
@@ -118,8 +118,8 @@ namespace lux::communication::introprocess
 
         void spinSome() override
         {
-            // 遍历所有 callback group
-            // 收集就绪的 subscriber 并执行
+            // Iterate all callback groups
+            // Collect ready subscribers and execute
             std::vector<std::shared_ptr<CallbackGroup>> groups_copy;
 
             {
@@ -145,14 +145,13 @@ namespace lux::communication::introprocess
     protected:
         bool checkRunnable() override
         {
-            // 判断是否有任何callback group的ready_list非空
+            // Determine if any callback group has a non-empty ready_list
             std::lock_guard<std::mutex> lock(mutex_);
             for (auto &g : callback_groups_)
             {
-                // 如果 g->collectReadySubscribers() 不做真正清空，得额外接口判断
-                // 这里简单示意，可以改成 group->hasReadySubscribers() 之类
-                // 为了演示，就返回 true，实际可更精细
-                // 需要更精细可以在 CallbackGroup 里加一个 isEmptyReadyList() 。
+                // If g->collectReadySubscribers() doesn't actually clear, we need an additional interface to check
+                // For demonstration, just return true. Actual logic can be more detailed.
+                // A more detailed approach might call group->hasReadySubscribers().
             }
             return true; 
         }
@@ -168,12 +167,12 @@ namespace lux::communication::introprocess
         ~MultiThreadedExecutor() override
         {
             stop();
-            thread_pool_.close();  // 等待线程池里的所有任务结束
+            thread_pool_.close();  // Wait for all tasks in the thread pool to finish
         }
 
         void spinSome() override
         {
-            // 1) 拷贝回调组列表，以免加锁时间过长
+            // 1) Copy the list of callback groups to avoid holding the lock too long
             std::vector<std::shared_ptr<CallbackGroup>> groups_copy;
             {
                 std::lock_guard<std::mutex> lock(mutex_);
@@ -184,11 +183,11 @@ namespace lux::communication::introprocess
                 }
             }
 
-            // 2) 逐个遍历回调组，取出就绪的Subscriber
-            //    - 对MutuallyExclusive: 在当前线程串行执行
-            //    - 对Reentrant: 分发到线程池并行执行
+            // 2) Traverse each group, retrieve ready subscribers
+            //    - For MutuallyExclusive groups: execute in the current thread serially
+            //    - For Reentrant groups: distribute to the thread pool for parallel execution
             std::vector<std::future<void>> futures; 
-            futures.reserve(64); // 根据需要预估或留空也行
+            futures.reserve(64); // Pre-allocate if desired
 
             for (auto &group : groups_copy)
             {
@@ -198,7 +197,7 @@ namespace lux::communication::introprocess
 
                 if (group->getType() == CallbackGroupType::MutuallyExclusive)
                 {
-                    // 互斥分组：在当前线程顺序执行
+                    // Mutually exclusive group: execute in current thread sequentially
                     for (auto *sub : readySubs)
                     {
                         if (!running_) break;
@@ -207,12 +206,12 @@ namespace lux::communication::introprocess
                 }
                 else
                 {
-                    // Reentrant 分组：把各回调投递到线程池并行处理
+                    // Reentrant group: dispatch each callback to the thread pool
                     for (auto *sub : readySubs)
                     {
                         if (!running_) break;
 
-                        // 将执行sub->takeAll()的任务异步提交到线程池
+                        // Submit the task to execute sub->takeAll() asynchronously
                         futures.push_back(
                             thread_pool_.submit(
                                 [sub]{sub->takeAll();}
@@ -222,11 +221,10 @@ namespace lux::communication::introprocess
                 }
             }
 
-            // 3) 等待本轮所有 Reentrant 回调都执行完
-            //    这样在下一次 spinSome() 收集到新一批就绪订阅者前，
-            //    不会跟这一次的回调还在处理中“抢”同一批消息。
-            //    如果你想真正做到“流水线式”并行，也可不等待，
-            //    但那就需要更复杂的去重/同步逻辑。
+            // 3) Wait until all Reentrant callbacks in this round finish
+            //    so that we don't mix with the next round of ready subscribers.
+            //    If you want a true "pipelined" parallel, you could skip waiting,
+            //    but it requires more complex synchronization.
             for (auto &f : futures)
             {
                 f.wait();
@@ -235,10 +233,10 @@ namespace lux::communication::introprocess
 
         void stop() override
         {
-            // 标记停止
+            // Mark stop
             if (running_.exchange(false))
             {
-                notifyCondition();  // 唤醒一下
+                notifyCondition();  // Wake up
                 if (spin_thread_.joinable())
                 {
                     spin_thread_.join();
@@ -249,16 +247,16 @@ namespace lux::communication::introprocess
     protected:
         bool checkRunnable() override
         {
-            // 简单示例：随时可跑
+            // Simple example: always runnable
             return true;
         }
 
     private:
-        // 我们只用一个线程来循环调用 spinSome()，
-        // 但是把 Reentrant 回调分发到线程池并行处理。
+        // We only use one thread to loop calling spinSome(),
+        // but we distribute Reentrant callbacks to the thread pool for parallel processing.
         std::thread         spin_thread_;
 
-        // 你的自定义线程池，用于并行执行 Reentrant 回调
+        // A custom thread pool for parallel execution of Reentrant callbacks
         lux::cxx::ThreadPool thread_pool_;
     };
 
@@ -266,10 +264,10 @@ namespace lux::communication::introprocess
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // 加入就绪队列
+        // Add to the ready queue
         ready_list_.push_back(sub);
 
-        // 通知 Executor
+        // Notify Executor
         auto exec = executor_.lock();
         if (exec)
         {
@@ -280,7 +278,7 @@ namespace lux::communication::introprocess
     std::vector<ISubscriberBase*> CallbackGroup::collectReadySubscribers()
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        // 将就绪队列复制出来并清空
+        // Swap out the ready queue
         std::vector<ISubscriberBase*> result;
         result.swap(ready_list_);
         return result;
