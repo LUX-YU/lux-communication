@@ -7,6 +7,8 @@
 #include <cassert>
 #include <unordered_set>
 #include <condition_variable>
+#include <lux/cxx/container/SparseSet.hpp>
+#include "SubscriberBase.hpp"
 
 namespace lux::communication::introprocess
 {
@@ -24,8 +26,7 @@ namespace lux::communication::introprocess
     {
     public:
         explicit CallbackGroup(CallbackGroupType type = CallbackGroupType::MutuallyExclusive)
-            : type_(type)
-        {}
+            : type_(type){}
 
         ~CallbackGroup() = default;
 
@@ -36,14 +37,22 @@ namespace lux::communication::introprocess
         void addSubscriber(ISubscriberBase* sub)
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            subscribers_.insert(sub);
+            if (!sub) return;
+            // Here we rely on sub->getId() returning a unique int ID.
+            subscribers_.insert(sub->getId(), sub);
         }
 
         void removeSubscriber(ISubscriberBase* sub)
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            subscribers_.erase(sub);
+            if (!sub) return;
+            subscribers_.erase(sub->getId());
         }
+
+		bool hasReadySubscribers() const
+		{
+			return !ready_list_.empty();
+		}
 
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor
@@ -59,17 +68,20 @@ namespace lux::communication::introprocess
         std::shared_ptr<Executor> getExecutor() const { return executor_.lock(); }
 
     private:
-        CallbackGroupType type_;
-        std::mutex        mutex_;
+        CallbackGroupType                           type_;
+        mutable std::mutex                          mutex_;
 
-        // All subscribers in this group
-        std::unordered_set<ISubscriberBase*> subscribers_;
+        // Use SparseSet<int, ISubscriberBase*> for fast add/remove.
+        // The 'int' key must come from something like sub->getId().
+        lux::cxx::SparseSet<int, ISubscriberBase*>  subscribers_;
 
-        // The queue of ready subscribers (with new data)
-        std::vector<ISubscriberBase*> ready_list_;
+        // We still keep a simple vector as a "ready queue."
+        // If you also wanted O(1) removal from the ready list, you could
+        // store them in another SparseSet. Usually, we just pop them in FIFO order.
+        std::vector<ISubscriberBase*>               ready_list_;
 
-        // A weak reference to Executor
-        std::weak_ptr<Executor> executor_;
+        // A weak reference to whichever Executor is responsible for this group
+        std::weak_ptr<Executor>                     executor_;
     };
 
 } // namespace lux::communication::introprocess

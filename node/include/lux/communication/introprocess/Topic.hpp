@@ -6,7 +6,6 @@
 #include <cassert>
 #include <memory>    // for std::unique_ptr
 #include "ITopicHolder.hpp"
-#include "RcBuffer.hpp"
 
 namespace lux::communication::introprocess
 {
@@ -77,8 +76,8 @@ namespace lux::communication::introprocess
         {
             // refCount starts at 0, external incRef() is required
             // Initialize an empty list
-            using ListType = detail::SubscriberList<T>;
-            auto emptyList = new ListType();
+            using sub_list_t = detail::SubscriberList<T>;
+            auto emptyList   = new sub_list_t();
             subs_.store(emptyList, std::memory_order_release);
         }
 
@@ -169,7 +168,7 @@ namespace lux::communication::introprocess
          * @brief Distribute messages (zero-copy)
          *        Just atomically load subs_ and iterate, no locking needed
          */
-        void publish(std::unique_ptr<T, RcDeleter<T>> msg)
+        void publish(std::shared_ptr<T> msg)
         {
             auto listPtr = subs_.load(std::memory_order_acquire);
             detail::incRef(listPtr);  // Prevent listPtr from being freed by concurrent remove
@@ -178,8 +177,7 @@ namespace lux::communication::introprocess
             {
                 if (sub)
                 {
-                    auto clonedPtr = rcAttach(msg.get_deleter().rcBuf);
-                    sub->enqueue(std::move(clonedPtr));
+                    sub->enqueue(msg);
                 }
             }
 

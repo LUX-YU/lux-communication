@@ -3,10 +3,7 @@ find_package(stduuid  CONFIG REQUIRED)
 find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time)
 
 set(LUX_COMMUNICATION_NODE_SRC
-	# ${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Core.cpp
-	# ${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Node.cpp
-	# ${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Publisher.cpp
-	# ${CMAKE_CURRENT_SOURCE_DIR}/src/introprocess/Subscriber.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/Subscriber.cpp
 )
 
 if(WIN32)
@@ -60,6 +57,7 @@ set(USE_LOCKFREE_QUEUE TRUE CACHE BOOL "Use cameron314/concurrentqueue")
 if(USE_LOCKFREE_QUEUE)
 	find_package(concurrentqueue CONFIG)
 	if(NOT concurrentqueue_FOUND)
+		# Vcpkg
 		find_package(unofficial-concurrentqueue CONFIG REQUIRED)
 		set(CONCURRENT_QUEUE unofficial::concurrentqueue::concurrentqueue)
 		set(CONCURRENT_QUEUE_DEPENDS "find_package(unofficial-concurrentqueue CONFIG REQUIRED)")

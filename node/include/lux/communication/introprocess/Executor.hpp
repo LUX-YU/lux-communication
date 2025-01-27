@@ -97,7 +97,16 @@ namespace lux::communication::introprocess
         }
 
         // Check if there is any runnable callback (subclass can implement details)
-        virtual bool checkRunnable() { return false; }
+        virtual bool checkRunnable() {
+			for (auto& g : callback_groups_)
+			{
+				if (g->hasReadySubscribers())
+				{
+					return true;
+				}
+			}
+			return false;
+        }
 
         std::atomic<bool> running_;
 
@@ -145,20 +154,6 @@ namespace lux::communication::introprocess
                 }
             }
         }
-
-    protected:
-        bool checkRunnable() override
-        {
-            // Determine if any callback group has a non-empty ready_list
-            std::lock_guard<std::mutex> lock(mutex_);
-            for (auto &g : callback_groups_)
-            {
-                // If g->collectReadySubscribers() doesn't actually clear, we need an additional interface to check
-                // For demonstration, just return true. Actual logic can be more detailed.
-                // A more detailed approach might call group->hasReadySubscribers().
-            }
-            return true;
-        }
     };
 
     class MultiThreadedExecutor : public Executor
@@ -172,7 +167,6 @@ namespace lux::communication::introprocess
         ~MultiThreadedExecutor() override
         {
             stop();
-            thread_pool_.close(); // Wait for all tasks in the thread pool to finish
         }
 
         void spinSome() override
@@ -221,8 +215,8 @@ namespace lux::communication::introprocess
                         // Submit the task to execute sub->takeAll() asynchronously
                         futures.push_back(
                             thread_pool_.submit(
-                                [sub]
-                                { sub->takeAll(); }));
+                                [sub]{ sub->takeAll(); })
+                        );
                     }
                 }
             }
@@ -243,25 +237,11 @@ namespace lux::communication::introprocess
             if (running_.exchange(false))
             {
                 notifyCondition(); // Wake up
-                if (spin_thread_.joinable())
-                {
-                    spin_thread_.join();
-                }
             }
-        }
-
-    protected:
-        bool checkRunnable() override
-        {
-            // Simple example: always runnable
-            return true;
+            thread_pool_.close();
         }
 
     private:
-        // We only use one thread to loop calling spinSome(),
-        // but we distribute Reentrant callbacks to the thread pool for parallel processing.
-        std::thread spin_thread_;
-
         // A custom thread pool for parallel execution of Reentrant callbacks
         lux::cxx::ThreadPool thread_pool_;
     };
@@ -355,10 +335,7 @@ namespace lux::communication::introprocess
     protected:
         bool checkRunnable() override
         {
-            // 如果队列非空，或者正在running_ = false
-            // 事实上，这里单线程版本只需返回 !buffer_.empty() 也可以。
-            // 但我们下一步要看 doWait() 逻辑
-            return true;
+            return !buffer_.empty();
         }
 
     private:
@@ -504,10 +481,12 @@ namespace lux::communication::introprocess
 
             // 使用unique_lock
             std::unique_lock<std::mutex> lk(cv_mutex_);
+
             // 如果在这段时间内，新消息到了(会notify)，则会提前唤醒
             // 如果没有新消息，就等到时间到了，超时唤醒后可以处理
-            cv_.wait_for(lk, wait_dur, [this]
-                         { return !running_.load() || !buffer_.empty(); });
+            cv_.wait_for(lk, wait_dur, 
+                [this]{ return !running_.load() || !buffer_.empty(); }
+            );
         }
 
     private:
@@ -545,10 +524,11 @@ namespace lux::communication::introprocess
     std::vector<ISubscriberBase *> CallbackGroup::collectAllSubscribers()
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<ISubscriberBase *> result;
-        for (auto sub : subscribers_)
+        std::vector<ISubscriberBase*> result;
+        result.reserve(subscribers_.size());
+        for (auto& sb : subscribers_.values())
         {
-            result.push_back(sub);
+            result.push_back(sb);
         }
         return result;
     }

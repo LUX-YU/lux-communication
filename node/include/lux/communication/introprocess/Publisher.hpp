@@ -3,7 +3,6 @@
 #include <string>
 #include <memory>
 #include <cassert>
-#include "RcBuffer.hpp"
 #include "Topic.hpp"
 
 namespace lux::communication::introprocess
@@ -62,7 +61,7 @@ namespace lux::communication::introprocess
         {
             if (topic_)
             {
-                auto ptr = makeRcUnique<T>(std::forward<U>(msg));
+                auto ptr = std::make_shared<T>(std::forward<U>(msg));
                 topic_->publish(std::move(ptr));
             }
         }

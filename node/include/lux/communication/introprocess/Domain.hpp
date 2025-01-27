@@ -17,9 +17,7 @@ namespace lux::communication::introprocess
     {
     public:
         explicit Domain(int domainId)
-            : domain_id_(domainId)
-        {
-        }
+            : domain_id_(domainId){}
 
         int getDomainId() const
         {

@@ -34,7 +34,6 @@ void testDomainIsolation()
     using namespace lux::communication::introprocess;
 
     std::cout << "\n=== testDomainIsolation ===\n";
-
     auto domain1 = std::make_shared<Domain>(1);
     auto domain2 = std::make_shared<Domain>(2);
 

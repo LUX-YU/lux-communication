@@ -10,13 +10,13 @@
 namespace lux::communication::introprocess
 {
     template <typename T>
-    using SubscriberCallback = std::function<void(std::unique_ptr<T, RcDeleter<T>>)>;
+    using SubscriberCallback = std::function<void(const std::shared_ptr<T>)>;
 
     template <typename T>
     struct SubscriberData
     {
-        bool inUse{false};
-        int nextFree{-1};
+        bool                  inUse{false};
+        int                   nextFree{-1};
         SubscriberCallback<T> callback; // Callback
     };
 
@@ -30,7 +30,7 @@ namespace lux::communication::introprocess
         friend class Node; // or friend class Node (depending on design)
 
         Subscriber(class Node *node, int sub_id, Topic<T> *topic, Callback cb, std::shared_ptr<CallbackGroup> callback_group)
-            : node_(node), sub_id_(sub_id), topic_(topic), callback_(std::move(cb)), callback_group_(std::move(callback_group))
+            : ISubscriberBase(sub_id), node_(node), topic_(topic), callback_(std::move(cb)), callback_group_(std::move(callback_group))
         {
             topic_->incRef();
             topic_->addSubscriber(this);
@@ -57,7 +57,7 @@ namespace lux::communication::introprocess
         }
 
         // The interface called by Topic when a new message arrives
-        void enqueue(std::unique_ptr<T, RcDeleter<T>> msg)
+        void enqueue(message_t<T> msg)
         {
             push(queue_, std::move(msg));
 
@@ -70,7 +70,7 @@ namespace lux::communication::introprocess
         // Called by Node spinOnce()
         void takeAll() override
         {
-            std::unique_ptr<T, RcDeleter<T>> msg;
+            message_t<T> msg;
             while (try_pop(queue_, msg))
             {
                 if (callback_)
@@ -106,14 +106,12 @@ namespace lux::communication::introprocess
         void moveFrom(Subscriber &&rhs)
         {
             node_           = rhs.node_;
-            sub_id_         = rhs.sub_id_;
             topic_          = rhs.topic_;
             callback_       = std::move(rhs.callback_);
             callback_group_ = std::move(rhs.callback_group_);
 
             rhs.node_       = nullptr;
             rhs.topic_      = nullptr;
-            rhs.sub_id_     = -1;
         }
 
         void drainAll(std::vector<TimeExecEntry> &out) override
@@ -121,7 +119,7 @@ namespace lux::communication::introprocess
             // static_assert(lux::communication::is_msg_stamped<T>, "Subscriber<T> does not support non-stamped message type T");
             if constexpr(lux::communication::is_msg_stamped<T>)
             {
-                std::unique_ptr<T, RcDeleter<T>> msg;
+                std::shared_ptr<T> msg;
                 while (try_pop(queue_, msg))
                 {
                     auto ts_ns = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*msg);
@@ -141,14 +139,14 @@ namespace lux::communication::introprocess
         }
 
     private:
-        class Node* node_{nullptr};
-        int         sub_id_{-1};
-        Topic<T>*   topic_{nullptr};
-        Callback    callback_;
-        std::atomic<bool> ready_flag_{false};
+        class Node*                     node_{nullptr};
+        int                             sub_id_{-1};
+        Topic<T>*                       topic_{nullptr};
+        Callback                        callback_;
+        std::atomic<bool>               ready_flag_{false};
         
-        std::shared_ptr<CallbackGroup> callback_group_;
+        std::shared_ptr<CallbackGroup>  callback_group_;
 
-        queue_t<T>  queue_;
+        queue_t<T>                      queue_;
     };
 }

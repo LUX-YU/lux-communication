@@ -11,14 +11,30 @@
 #include "Executor.hpp"
 
 #include <lux/cxx/compile_time/type_info.hpp>
-#include <exec/static_thread_pool.hpp>
+#include <lux/cxx/container/SparseSet.hpp>
 
 namespace lux::communication::introprocess
 {
     class Node
     {
     public:
-        explicit Node(const std::string &nodeName, std::shared_ptr<Domain> domain)
+        // Basic record structures remain the same
+        struct PublisherRecord
+        {
+            int                       id;
+            std::string               topic_name;
+            lux::cxx::basic_type_info type_info;
+        };
+
+        struct SubscriberRecord
+        {
+            int                       id;
+            std::string               topic_name;
+            lux::cxx::basic_type_info type_info;
+            std::function<void()>     spin_fn;
+        };
+
+        explicit Node(const std::string& nodeName, std::shared_ptr<Domain> domain)
             : node_name_(nodeName), domain_(domain), running_(false)
         {
             default_callback_group_ = std::make_shared<CallbackGroup>(CallbackGroupType::MutuallyExclusive);
@@ -30,175 +46,166 @@ namespace lux::communication::introprocess
         }
 
         int getDomainId() const { return domain_->getDomainId(); }
-        const std::string &getName() const { return node_name_; }
+        const std::string& getName() const { return node_name_; }
 
         std::shared_ptr<CallbackGroup> getDefaultCallbackGroup() const
         {
             return default_callback_group_;
         }
 
-        // Create a Publisher
+        /**
+         * @brief Create a Publisher
+         *
+         * Rewritten to use SparseSet for storing the PublisherRecord.
+         * We continue to reuse publisher IDs via `free_pub_ids_`.
+         */
         template <typename T>
-        std::shared_ptr<Publisher<T>> createPublisher(const std::string &topic_name)
+        std::shared_ptr<Publisher<T>> createPublisher(const std::string& topic_name)
         {
             std::lock_guard<std::mutex> lock(mutex_pub_);
+
+            // 1) Allocate or reuse a publisher ID
             int pub_id = 0;
-            if(!free_pub_ids_.empty())
+            if (!free_pub_ids_.empty())
             {
                 pub_id = free_pub_ids_.back();
                 free_pub_ids_.pop_back();
             }
             else
             {
-                pub_id = (int)pub_sparse_index_.size();
-                pub_sparse_index_.push_back(-1);
+                // If no free IDs, use the size of the sparse set as a new ID
+                pub_id = static_cast<int>(pub_set_.size());
             }
 
-            int dense_index = (int)pub_records_.size();
-
-            // Create or get the topic in domain
+            // 2) Create or get the Topic from the Domain
             auto topic_ptr = domain_->createOrGetTopic<T>(topic_name);
 
-            // Construct Publisher
+            // 3) Construct the Publisher
             auto pub = std::make_shared<Publisher<T>>(this, pub_id, topic_ptr);
 
-            // Record it in Node's pub_records_
+            // 4) Record in the SparseSet
             PublisherRecord pub_record{
-                .id         = pub_id,
+                .id = pub_id,
                 .topic_name = topic_name,
-                .type_info  = lux::cxx::make_basic_type_info<T>()
+                .type_info = lux::cxx::make_basic_type_info<T>()
             };
-
-            pub_records_.push_back(std::move(pub_record));
-            pub_sparse_index_[pub_id] = dense_index;
+            pub_set_.insert(pub_id, std::move(pub_record));
 
             return pub;
         }
 
-        // Create a Subscriber
+        /**
+         * @brief Create a Subscriber
+         *
+         * Rewritten to use SparseSet for storing the SubscriberRecord.
+         * We continue to reuse subscriber IDs via `free_sub_ids_`.
+         */
         template <typename T, typename Func>
         std::shared_ptr<Subscriber<T>> createSubscriber(
-            const std::string &topic_name, Func&& cb, std::shared_ptr<CallbackGroup> group = nullptr)
+            const std::string& topic_name, Func&& cb, std::shared_ptr<CallbackGroup> group = nullptr)
         {
             std::lock_guard<std::mutex> lock(mutex_sub_);
+
+            // 1) Allocate or reuse a subscriber ID
             int sub_id = 0;
-            if(!free_sub_ids_.empty())
+            if (!free_sub_ids_.empty())
             {
                 sub_id = free_sub_ids_.back();
                 free_sub_ids_.pop_back();
             }
             else
             {
-                sub_id = (int)sub_sparse_index_.size();
-                sub_sparse_index_.push_back(-1);
+                // If no free IDs, use the size of the sparse set as a new ID
+                sub_id = static_cast<int>(sub_set_.size());
             }
 
+            // 2) Create or get the Topic from the Domain
             auto topic_ptr = domain_->createOrGetTopic<T>(topic_name);
+
+            // 3) If no specific callback group provided, use the default
             if (!group)
             {
                 group = default_callback_group_;
             }
 
-            auto sub = std::make_shared<Subscriber<T>>(this, sub_id, topic_ptr, std::forward<Func>(cb), std::move(group));
+            // 4) Construct the Subscriber
+            auto sub = std::make_shared<Subscriber<T>>(this, sub_id, topic_ptr, std::forward<Func>(cb), group);
 
-            // Record it in Node's sub_records_
+            // 5) Record in the SparseSet
             SubscriberRecord sub_record{
-                .id         = sub_id,
+                .id = sub_id,
                 .topic_name = topic_name,
-                .type_info  = lux::cxx::make_basic_type_info<T>(),
-                .spin_fn    = [sub_ptr = sub.get()]()
-                    {
-                        sub_ptr->takeAll();
-                    }
+                .type_info = lux::cxx::make_basic_type_info<T>(),
+                .spin_fn = [sub_ptr = sub.get()]()
+                {
+                    sub_ptr->takeAll();
+                }
             };
-
-            sub_records_.push_back(std::move(sub_record));
-            sub_sparse_index_[sub_id] = (int)sub_records_.size() - 1;
+            sub_set_.insert(sub_id, std::move(sub_record));
 
             return sub;
         }
 
-        // Remove a Publisher
+        /**
+         * @brief Remove a Publisher by ID.
+         *
+         * Now we just call `erase` on the SparseSet and store the ID into free_pub_ids_.
+         */
         void removePublisher(int pub_id)
         {
             std::lock_guard<std::mutex> lock(mutex_pub_);
-            int dense_index = pub_sparse_index_[pub_id];
-            assert(dense_index >= 0 && dense_index < (int)pub_records_.size());
-
-            int last_index = (int)pub_records_.size() - 1;
-            if(dense_index != last_index)
+            if (pub_set_.contains(pub_id))
             {
-                std::swap(pub_records_[dense_index], pub_records_[last_index]);
-                int moved_id = pub_records_[dense_index].id;
-                pub_sparse_index_[moved_id] = dense_index;
+                pub_set_.erase(pub_id);
+                free_pub_ids_.push_back(pub_id);
             }
-
-            pub_records_.pop_back();
-            pub_sparse_index_[pub_id] = -1;
-            free_pub_ids_.push_back(pub_id);
         }
 
-        // Remove a Subscriber
+        /**
+         * @brief Remove a Subscriber by ID.
+         *
+         * Same idea for the subscriber SparseSet.
+         */
         void removeSubscriber(int sub_id)
         {
             std::lock_guard<std::mutex> lock(mutex_sub_);
-            int dense_index = sub_sparse_index_[sub_id];
-            assert(dense_index >= 0 && dense_index < (int)sub_records_.size());
-
-            int last_index = (int)sub_records_.size() - 1;
-            if(dense_index != last_index)
+            if (sub_set_.contains(sub_id))
             {
-                std::swap(sub_records_[dense_index], sub_records_[last_index]);
-                int moved_id = sub_records_[dense_index].id;
-                sub_sparse_index_[moved_id] = dense_index;
+                sub_set_.erase(sub_id);
+                free_sub_ids_.push_back(sub_id);
             }
-
-            sub_records_.pop_back();
-            sub_sparse_index_[sub_id] = -1;
-            free_sub_ids_.push_back(sub_id);
         }
 
-        // Stopping the Node
+        // Stop the Node's activities (placeholder)
         void stop()
         {
             running_ = false;
         }
 
     private:
-        struct PublisherRecord
-        {
-            int                         id;
-            std::string                 topic_name;
-            lux::cxx::basic_type_info   type_info;
-        };
+        // Basic Node info
+        std::string             node_name_;
+        std::shared_ptr<Domain> domain_;
 
-        struct SubscriberRecord
-        {
-            int                         id;
-            std::string                 topic_name;
-            lux::cxx::basic_type_info   type_info;
-            // The function called during spinOnce
-            std::function<void()>       spin_fn;
-        };
+        // We replace the raw vectors with two SparseSets, keyed by int ID:
+        lux::cxx::SparseSet<int, PublisherRecord>  pub_set_;
+        lux::cxx::SparseSet<int, SubscriberRecord> sub_set_;
 
-    private:
-        std::string                   node_name_;
-        std::shared_ptr<Domain>       domain_;
+        // We keep free_*_ids_ to reuse IDs exactly as before
+        std::vector<int> free_pub_ids_;
+        std::vector<int> free_sub_ids_;
 
-        std::vector<SubscriberRecord> sub_records_;
-        std::vector<int>              sub_sparse_index_;
-        std::vector<int>              free_sub_ids_;
+        // Mutexes to protect the publisher/subscriber data structures
+        std::mutex mutex_pub_;
+        std::mutex mutex_sub_;
 
-        std::vector<PublisherRecord>  pub_records_;
-        std::vector<int>              pub_sparse_index_;
-        std::vector<int>              free_pub_ids_;
+        // Example: Node "running" state
+        std::atomic<bool> running_;
 
-        std::mutex                    mutex_pub_;
-        std::mutex                    mutex_sub_;
-        std::atomic<bool>             running_;
-
+        // Default callback group
         std::shared_ptr<CallbackGroup> default_callback_group_;
     };
+
 
     template <typename T>
     Publisher<T>::~Publisher()
