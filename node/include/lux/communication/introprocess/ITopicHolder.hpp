@@ -21,14 +21,14 @@ namespace lux::communication::introprocess
         // Reference count +1
         void incRef()
         {
-            _refCount.fetch_add(1, std::memory_order_relaxed);
+            ref_count_.fetch_add(1, std::memory_order_relaxed);
         }
 
         // Reference count -1
         void decRef()
         {
-            _refCount.fetch_sub(1, std::memory_order_acq_rel);
-            if (_refCount.load(std::memory_order_acquire) == 0)
+            ref_count_.fetch_sub(1, std::memory_order_acq_rel);
+            if (ref_count_.load(std::memory_order_acquire) == 0)
             {
                 onNoRef();
             }
@@ -37,7 +37,7 @@ namespace lux::communication::introprocess
         // Current reference count
         int refCount() const
         {
-            return _refCount;
+            return ref_count_;
         }
 
     protected:
@@ -45,6 +45,6 @@ namespace lux::communication::introprocess
         virtual void onNoRef() = 0;
 
     protected:
-        std::atomic<int> _refCount{0};
+        std::atomic<int> ref_count_{0};
     };
 }
