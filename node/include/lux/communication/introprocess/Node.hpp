@@ -232,19 +232,7 @@ namespace lux::communication::introprocess
     template <typename T>
     Subscriber<T>::~Subscriber()
     {
-        if (topic_)
-        {
-            // Notify Node to remove me
-            if (node_)
-            {
-                node_->removeSubscriber(sub_id_);
-                node_ = nullptr;
-            }
-            topic_->removeSubscriber(this);
-            topic_->decRef();
-            topic_ = nullptr;
-        }
-        close(queue_);
+        cleanup();
     }
 
     template <typename T>

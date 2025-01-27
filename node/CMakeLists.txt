@@ -42,6 +42,11 @@ target_link_libraries(
 	stduuid
 )
 
+component_add_internal_dependencies(
+    node
+    lux::communication::builtin_msgs
+)
+
 set(USE_SHARED_MESSAGE_MODE FALSE CACHE BOOL "Use shared_ptr as message points")
 if(USE_SHARED_MESSAGE_MODE)
 	target_compile_definitions(

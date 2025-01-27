@@ -5,6 +5,7 @@
 #include "Topic.hpp"
 #include "SubscriberBase.hpp"
 #include "CallbackGroup.hpp"
+#include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 
 namespace lux::communication::introprocess
 {
@@ -88,8 +89,10 @@ namespace lux::communication::introprocess
             bool expected = false;
             // If originally false, set to true and return true
             // If already true, return false
-            return ready_flag_.compare_exchange_strong(expected, true,
-                    std::memory_order_acq_rel, std::memory_order_acquire);
+            return ready_flag_.compare_exchange_strong(
+                expected, true,
+                std::memory_order_acq_rel, std::memory_order_acquire
+            );
         }
 
         void clearReady() override
@@ -102,14 +105,39 @@ namespace lux::communication::introprocess
 
         void moveFrom(Subscriber &&rhs)
         {
-            node_      = rhs.node_;
-            sub_id_    = rhs.sub_id_;
-            topic_     = rhs.topic_;
-            callback_  = std::move(rhs.callback_);
+            node_           = rhs.node_;
+            sub_id_         = rhs.sub_id_;
+            topic_          = rhs.topic_;
+            callback_       = std::move(rhs.callback_);
+            callback_group_ = std::move(rhs.callback_group_);
 
-            rhs.node_  = nullptr;
-            rhs.topic_ = nullptr;
-            rhs.sub_id_ = -1;
+            rhs.node_       = nullptr;
+            rhs.topic_      = nullptr;
+            rhs.sub_id_     = -1;
+        }
+
+        void drainAll(std::vector<TimeExecEntry> &out) override
+        {
+            // static_assert(lux::communication::is_msg_stamped<T>, "Subscriber<T> does not support non-stamped message type T");
+            if constexpr(lux::communication::is_msg_stamped<T>)
+            {
+                std::unique_ptr<T, RcDeleter<T>> msg;
+                while (try_pop(queue_, msg))
+                {
+                    auto ts_ns = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*msg);
+                    // capture 'msg' by move in the invoker
+                    // user callback 见下：这里本示例中callback_是subscribe时设置的用户回调
+                    auto invoker = [cb=callback_, m=std::move(msg)]() mutable {
+                        if(cb) {
+                            cb(*m);
+                        }
+                    };
+                    out.push_back(TimeExecEntry{ ts_ns, std::move(invoker) });
+                }
+            }
+            else{
+                throw std::runtime_error("Subscriber<T> does not support non-stamped message type T");
+            }
         }
 
     private:

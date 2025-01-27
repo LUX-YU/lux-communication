@@ -51,6 +51,8 @@ namespace lux::communication::introprocess
 
         // For Executor to collect all ready subscribers (take them in one go)
         std::vector<ISubscriberBase*> collectReadySubscribers();
+        
+        std::vector<ISubscriberBase*> collectAllSubscribers();
 
         // Set/get Executor (called by Executor::addCallbackGroup())
         void setExecutor(std::shared_ptr<Executor> exec) { executor_ = exec; }
