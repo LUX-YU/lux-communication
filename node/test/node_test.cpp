@@ -439,7 +439,7 @@ void testLatencySinglePubSub(int messageCount = 1000)
     auto sub = node->createSubscriber<TimeStampedMsg>("latency_topic",
         [&](const TimeStampedMsg &msg)
         {
-            auto now   = std::chrono::steady_clock::now();
+            auto now   = std::chrono::high_resolution_clock::now();
             auto delta = std::chrono::duration_cast<std::chrono::microseconds>(now - msg.sendTime).count();
 
             // 原子地获取一个写入位置
@@ -465,7 +465,7 @@ void testLatencySinglePubSub(int messageCount = 1000)
     for (int i = 0; i < messageCount; ++i)
     {
         TimeStampedMsg msg;
-        msg.sendTime = std::chrono::steady_clock::now();
+        msg.sendTime = std::chrono::high_resolution_clock::now();
         msg.payload  = "test " + std::to_string(i);
 
         pub->publish(std::move(msg));

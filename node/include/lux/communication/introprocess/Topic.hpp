@@ -182,7 +182,7 @@ namespace lux::communication::introprocess
             }
 
             detail::decRef(listPtr);  // Done iterating
-            // msg goes out of scope, refCount -1
+            
         }
 
     protected:
