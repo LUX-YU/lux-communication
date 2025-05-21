@@ -124,7 +124,7 @@ namespace lux::communication::introprocess
                 {
                     auto ts_ns = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*msg);
                     // capture 'msg' by move in the invoker
-                    // user callback 见下：这里本示例中callback_是subscribe时设置的用户回调
+                    // Capture user callback set when subscribing
                     auto invoker = [cb=callback_, m=std::move(msg)]() mutable {
                         if(cb) {
                             cb(*m);

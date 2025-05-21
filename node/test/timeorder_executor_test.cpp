@@ -5,43 +5,43 @@
 #include <iostream>
 #include <iomanip>
 
-// 假设以下头文件里有：Domain, Node, TimeOrderedExecutor, Publisher, Subscriber, 
-// 以及 ImuStampedS, ImageStampedS, timestamp_from_ns, timestamp_to_ns, etc.
+// Assume the following headers provide Domain, Node, TimeOrderedExecutor,
+// Publisher, Subscriber, ImuStampedS, ImageStampedS, timestamp utilities, etc.
 #include <lux/communication/introprocess/Node.hpp>
 #include "lux/communication/builtin_msgs/sensor_msgs/imu_stamped.st.h"
 #include "lux/communication/builtin_msgs/sensor_msgs/image_stamped.st.h"
 #include "lux/communication/builtin_msgs/common_msgs/timestamp.st.h"
 
-static std::atomic<bool> g_running{true}; // 用于控制发布线程何时停止
+static std::atomic<bool> g_running{true}; // control when publishing threads stop
 
-// 一个函数，用于演示单次测试，在指定的time_offset下运行一段时间，统计out-of-order情况
+// Function that runs a single test with a given time_offset for a period and counts out-of-order events
 void run_test_with_offset(std::chrono::nanoseconds offset,
                           uint64_t test_duration_ms,
                           std::atomic<uint64_t> &imu_out_of_order_count,
                           std::atomic<uint64_t> &cam_out_of_order_count)
 {
-    // 1) 创建 Domain / Node
+    // 1) Create Domain / Node
     auto domain = std::make_shared<lux::communication::introprocess::Domain>(0);
     auto node   = std::make_shared<lux::communication::introprocess::Node>("test_node", domain);
 
-    // 2) 创建 TimeOrderedExecutor，设置延迟窗口
+    // 2) Create TimeOrderedExecutor with a delay window
     auto timeExec = std::make_shared<lux::communication::introprocess::TimeOrderedExecutor>(offset);
-    // 将 Node 的默认回调组加入 Executor
+    // Add the node's default callback group to the executor
     timeExec->addNode(node);
 
-    // 3) 创建 Publisher (IMU / Camera)
+    // 3) Create publishers (IMU / Camera)
     auto pub_imu = node->createPublisher<lux::communication::builtin_msgs::sensor_msgs::ImuStampedS>("/imu");
     auto pub_cam = node->createPublisher<lux::communication::builtin_msgs::sensor_msgs::ImageStampedS>("/camera");
 
-    // 4) 统计变量
+    // 4) Stats variables
     std::atomic<uint64_t> last_imu_ts(0);
     std::atomic<uint64_t> last_cam_ts(0);
 
-    // 用来统计乱序次数
+    // Counters for out-of-order events
     imu_out_of_order_count = 0;
     cam_out_of_order_count = 0;
 
-    // 5) 创建 Subscriber (IMU)
+    // 5) Create subscriber for IMU
     auto sub_imu = node->createSubscriber<lux::communication::builtin_msgs::sensor_msgs::ImuStampedS>(
         "/imu",
         [&](const lux::communication::builtin_msgs::sensor_msgs::ImuStampedS & msg)
@@ -55,7 +55,7 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
         }
     );
 
-    // 6) 创建 Subscriber (Camera)
+    // 6) Create subscriber for camera
     auto sub_cam = node->createSubscriber<lux::communication::builtin_msgs::sensor_msgs::ImageStampedS>(
         "/camera",
         [&](const lux::communication::builtin_msgs::sensor_msgs::ImageStampedS & msg)
@@ -69,34 +69,34 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
         }
     );
 
-    // 7) 启动两个发布线程: IMU (100Hz 带抖动) / Camera (30Hz 带抖动)
+    // 7) Start two publishing threads: IMU (100Hz with jitter) / Camera (30Hz with jitter)
     g_running.store(true);
 
     std::thread t_imu([&]{
         std::mt19937 rng(std::random_device{}());
-        // 随机抖动：0~5ms
+        // Random jitter: 0-5ms
         std::uniform_int_distribution<int> jitter(0, 5000);
 
         while(g_running.load())
         {
-            // 构造ImuStampedS
+            // Build ImuStampedS
             lux::communication::builtin_msgs::sensor_msgs::ImuStampedS imu;
             auto now = std::chrono::steady_clock::now();
             auto ns  = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
             lux::communication::builtin_msgs::common_msgs::timestamp_from_ns(imu.timestamp, ns);
 
-            // 发布
+            // Publish
             pub_imu->publish(imu);
 
-            // 休眠 ~10ms(100Hz)
-            int extra_us = jitter(rng); // 0~5000微秒 => 0~5ms
+            // Sleep about 10ms (100Hz)
+            int extra_us = jitter(rng); // 0-5000 microseconds (~0-5ms)
             std::this_thread::sleep_for(std::chrono::milliseconds(10) + std::chrono::microseconds(extra_us));
         }
     });
 
     std::thread t_cam([&]{
         std::mt19937 rng(std::random_device{}());
-        // 随机抖动：0~8ms
+        // Random jitter: 0-8ms
         std::uniform_int_distribution<int> jitter(0, 8000);
 
         while(g_running.load())
@@ -108,26 +108,26 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
 
             pub_cam->publish(img);
 
-            // 休眠 ~33ms(约30Hz)
+            // Sleep about 33ms (~30Hz)
             int extra_us = jitter(rng); // 0~8000
             std::this_thread::sleep_for(std::chrono::milliseconds(33) + std::chrono::microseconds(extra_us));
         }
     });
 
-    // 8) 在另一个线程中启动 TimeOrderedExecutor 的 spin
+    // 8) Start TimeOrderedExecutor spin in another thread
     std::thread t_exec([&]{
         timeExec->spin();
     });
 
-    // 9) 让测试持续指定时间 test_duration_ms
+    // 9) Let the test run for test_duration_ms
     std::this_thread::sleep_for(std::chrono::milliseconds(test_duration_ms));
 
-    // 10) 停止
+    // 10) Stop
     g_running.store(false);
-    node->stop();       // 通知 Node
-    timeExec->stop();   // 停止 Executor
+    node->stop();       // notify Node
+    timeExec->stop();   // stop Executor
 
-    // 等待发布线程 & spin线程退出
+    // Wait for publishing threads and spin thread to exit
     t_imu.join();
     t_cam.join();
     t_exec.join();
@@ -135,18 +135,18 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
 
 int main()
 {
-    // 我们测试多个offset值(0, 5ms, 20ms, 50ms等)
-    // 每次跑10秒，统计一次结果
-    const uint64_t test_duration_ms = 10'000; // 10秒
+    // Test several offset values (0, 5ms, 20ms, 50ms, ...)
+    // Run each for 10 seconds and log the results
+    const uint64_t test_duration_ms = 10'000; // 10 seconds
     for (auto offset_ms : {0, 5, 20, 50})
     {
-        // 转成nanoseconds
+        // Convert to nanoseconds
         auto offset_ns = std::chrono::milliseconds(offset_ms);
 
         std::atomic<uint64_t> imu_out_of_order = 0;
         std::atomic<uint64_t> cam_out_of_order = 0;
 
-        // 运行测试
+        // Run the test
         run_test_with_offset(offset_ns, test_duration_ms, imu_out_of_order, cam_out_of_order);
 
         std::cout << "[Test Offset = " << offset_ms << " ms]"
