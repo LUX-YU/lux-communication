@@ -11,3 +11,9 @@ target_link_libraries(executor_interprocess_test PRIVATE lux::communication::nod
 
 add_executable(communication_intra_inter_test communication_intra_inter_test.cpp)
 target_link_libraries(communication_intra_inter_test PRIVATE lux::communication::node)
+
+add_executable(discovery_test discovery_test.cpp)
+target_link_libraries(discovery_test PRIVATE lux::communication::node)
+
+add_executable(interprocess_performance_test interprocess_performance_test.cpp)
+target_link_libraries(interprocess_performance_test PRIVATE lux::communication::node)

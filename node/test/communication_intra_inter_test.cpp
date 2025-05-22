@@ -49,10 +49,20 @@ void testIntraInter()
     auto psub = pnode.createSubscriber<Msg>("ch", [&](const Msg&m){interCount++;});
     auto ppub = pnode.createPublisher<Msg>("ch");
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto exec = std::make_shared<SingleThreadedExecutor>();
+    exec->addNode(inode);
+    exec->addCallbackGroup(pnode.getDefaultCallbackGroup());
+    std::thread th([&]{ exec->spin(); });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     ipub->publish(Msg{0});
     ppub->publish(Msg{1});
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    exec->stop();
+    th.join();
     pnode.stop();
     std::cout << "intra="<<intraCount.load()<<" inter="<<interCount.load()<<"\n";
 }
