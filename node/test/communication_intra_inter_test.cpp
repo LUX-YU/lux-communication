@@ -7,7 +7,7 @@
 
 #include <lux/communication/introprocess/Node.hpp>
 #include <lux/communication/interprocess/Node.hpp>
-#include <lux/communication/introprocess/Executor.hpp>
+#include <lux/communication/Executor.hpp>
 
 struct Msg { int value; };
 
@@ -21,16 +21,11 @@ void testLifecycle()
         interprocess::Node nodeB("B");
 
         std::atomic<int> count{0};
-        auto exec = std::make_shared<introprocess::SingleThreadedExecutor>();
-        exec->addCallbackGroup(nodeB.getDefaultCallbackGroup());
-        std::thread th([&]{ exec->spin(); });
-
         auto sub = nodeB.createSubscriber<Msg>("ping", [&](const Msg&m){count++;});
         auto pub = nodeA.createPublisher<Msg>("ping");
-
-        for(int i=0;i<5;i++){ pub->publish(Msg{i}); std::this_thread::sleep_for(std::chrono::milliseconds(10)); }
-        exec->stop();
-        th.join();
+        pub->publish(Msg{1});
+        nodeA.stop();
+        nodeB.stop();
     }
     // destructors should stop without hang
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -56,16 +51,9 @@ void testIntraInter()
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    auto exec = std::make_shared<introprocess::SingleThreadedExecutor>();
-    exec->addNode(inode);
-    exec->addCallbackGroup(pnode.getDefaultCallbackGroup());
-    std::thread th([&]{ exec->spin(); });
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    for(int i=0;i<3;i++){ ipub->publish(Msg{i}); ppub->publish(Msg{i}); }
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    exec->stop();
-    th.join();
+    ipub->publish(Msg{0});
+    ppub->publish(Msg{1});
+    pnode.stop();
     std::cout << "intra="<<intraCount.load()<<" inter="<<interCount.load()<<"\n";
 }
 

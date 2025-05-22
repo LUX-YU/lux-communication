@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <algorithm>
 #include <mutex>
 #include <atomic>
 #include <functional>
@@ -48,6 +49,11 @@ namespace lux::communication
             std::lock_guard<std::mutex> lock(mutex_);
             if (!sub) return;
             subscribers_.erase(sub->getId());
+            auto it = std::find(ready_list_.begin(), ready_list_.end(), sub);
+            if (it != ready_list_.end())
+            {
+                ready_list_.erase(it);
+            }
         }
 
 		bool hasReadySubscribers() const
