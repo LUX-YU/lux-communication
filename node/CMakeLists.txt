@@ -30,13 +30,13 @@ component_include_directories(
 )
 
 target_link_libraries(
-	node 
-	PUBLIC
-	# cppzmq
-	lux::cxx::concurrent
-	lux::cxx::compile_time
-	PRIVATE
-	stduuid
+        node
+        PUBLIC
+        cppzmq
+        lux::cxx::concurrent
+        lux::cxx::compile_time
+        PRIVATE
+        stduuid
 )
 
 component_add_internal_dependencies(

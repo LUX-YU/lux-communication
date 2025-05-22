@@ -5,7 +5,8 @@
 #include <memory>
 
 #include <lux/communication/interprocess/Node.hpp>
-#include <lux/communication/introprocess/Executor.hpp>
+#include <lux/communication/Executor.hpp>
+#include <lux/communication/introprocess/Node.hpp> // for Executor::addNode definition
 
 struct IntMsg { int value; };
 
@@ -16,7 +17,7 @@ void runExecutorInterprocess()
     interprocess::Node nodeSub("sub");
 
     std::atomic<int> count{0};
-    auto exec = std::make_shared<introprocess::SingleThreadedExecutor>();
+    auto exec = std::make_shared<SingleThreadedExecutor>();
     exec->addCallbackGroup(nodeSub.getDefaultCallbackGroup());
     std::thread th([&]{ exec->spin(); });
 

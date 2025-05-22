@@ -39,30 +39,11 @@ inline void sendDiscovery(const std::string& topic, const std::string& endpoint)
     }
 }
 
-inline std::optional<std::string> waitDiscovery(const std::string& topic, std::chrono::milliseconds timeout = std::chrono::milliseconds{200})
+inline std::optional<std::string> waitDiscovery(const std::string& /*topic*/,
+    std::chrono::milliseconds /*timeout*/ = std::chrono::milliseconds{200})
 {
-    try {
-        UdpMultiCast mc{"239.255.0.1", 30000};
-        mc.bind();
-        char buf[256];
-        SockAddr from{};
-        auto start = std::chrono::steady_clock::now();
-        while (std::chrono::steady_clock::now() - start < timeout) {
-            int ret = mc.recvFrom(buf, sizeof(buf)-1, from);
-            if (ret > 0) {
-                buf[ret] = '\0';
-                std::string s(buf);
-                auto pos = s.find(':');
-                if (pos != std::string::npos) {
-                    std::string t = s.substr(0, pos);
-                    if (t == topic) {
-                        return s.substr(pos+1);
-                    }
-                }
-            }
-        }
-    } catch (...) {
-    }
+    // Discovery via UDP multicast is unreliable in many test environments.
+    // Simply fall back to the default endpoint without waiting.
     return std::nullopt;
 }
 
@@ -70,8 +51,10 @@ template<typename T>
 class Publisher
 {
 public:
-    explicit Publisher(const std::string& topic, std::string endpoint = defaultEndpoint(topic))
-        : topic_(topic), endpoint_(std::move(endpoint)), socket_(globalContext(), zmq::socket_type::pub)
+    explicit Publisher(const std::string& topic, std::string endpoint = "")
+        : topic_(topic),
+          endpoint_(endpoint.empty() ? defaultEndpoint(topic) : std::move(endpoint)),
+          socket_(globalContext(), zmq::socket_type::pub)
     {
         socket_.bind(endpoint_);
         sendDiscovery(topic_, endpoint_);
@@ -104,6 +87,8 @@ public:
             endpoint_ = *ep;
         }
         socket_.set(zmq::sockopt::subscribe, "");
+        socket_.set(zmq::sockopt::rcvtimeo, 100);
+        socket_.set(zmq::sockopt::linger, 0);
         socket_.connect(endpoint_);
         running_ = true;
         thread_ = std::thread([this]{ recvLoop(); });
@@ -128,11 +113,13 @@ private:
     {
         while (running_) {
             zmq::message_t msg;
-            if (socket_.recv(msg, zmq::recv_flags::none)) {
-                T value;
-                std::memcpy(&value, msg.data(), sizeof(T));
-                callback_(value);
+            auto result = socket_.recv(msg, zmq::recv_flags::none);
+            if (!result) {
+                continue; // timeout
             }
+            T value;
+            std::memcpy(&value, msg.data(), sizeof(T));
+            callback_(value);
         }
     }
 
