@@ -10,25 +10,25 @@
 
 struct IntMsg { int value; };
 
-void runDiscoveryTest()
+static void runDiscoveryTest()
 {
     using namespace lux::communication;
-    interprocess::Node nodeSub("sub");
+    interprocess::Node node_sub("sub");
     std::atomic<int> count{0};
 
     auto exec = std::make_shared<SingleThreadedExecutor>();
-    exec->addCallbackGroup(nodeSub.getDefaultCallbackGroup());
-    auto sub = nodeSub.createSubscriber<IntMsg>("topic", [&](const IntMsg&){count++;});
+    exec->addCallbackGroup(node_sub.getDefaultCallbackGroup());
+    auto sub = node_sub.createSubscriber<IntMsg>("topic", [&](const IntMsg&){count++;});
     std::thread th([&]{ exec->spin(); });
 
     // Start publisher a bit later to test discovery
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     interprocess::Node nodePub("pub");
     auto pub = nodePub.createPublisher<IntMsg>("topic");
 
     // Give subscriber time to connect to the new publisher
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     for(int i=0;i<5;++i){
         pub->publish(IntMsg{i});
