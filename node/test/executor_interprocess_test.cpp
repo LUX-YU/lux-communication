@@ -13,25 +13,46 @@ struct IntMsg { int value; };
 void runExecutorInterprocess()
 {
     using namespace lux::communication;
+
+    // Publisher node and subscriber node
     interprocess::Node nodePub("pub");
     interprocess::Node nodeSub("sub");
 
-    std::atomic<int> count{0};
+    std::atomic<int> subCount1{0};
+    std::atomic<int> subCount2{0};
+
+    // Executor to drive callbacks from nodeSub
     auto exec = std::make_shared<SingleThreadedExecutor>();
     exec->addCallbackGroup(nodeSub.getDefaultCallbackGroup());
-    std::thread th([&]{ exec->spin(); });
 
-    auto sub = nodeSub.createSubscriber<IntMsg>("topic", [&](const IntMsg&m){count++;});
+    // Two subscribers on the same topic
+    auto sub1 = nodeSub.createSubscriber<IntMsg>("topic", [&](const IntMsg&m){ subCount1++; });
+    auto sub2 = nodeSub.createSubscriber<IntMsg>("topic", [&](const IntMsg&m){ subCount2++; });
+
+    std::thread spinThread([&]{ exec->spin(); });
+
     auto pub = nodePub.createPublisher<IntMsg>("topic");
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    // Give ZMQ some time to set up
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-    for(int i=0;i<10;i++){ pub->publish(IntMsg{i}); std::this_thread::sleep_for(std::chrono::milliseconds(5)); }
+    for(int i=0;i<5;i++)
+    {
+        pub->publish(IntMsg{i});
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    // Allow some time for delivery
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     exec->stop();
-    th.join();
-    std::cout << "received=" << count.load() << std::endl;
+    spinThread.join();
+
+    std::cout << "sub1=" << subCount1.load() << " sub2=" << subCount2.load() << std::endl;
 }
 
-int main(){ runExecutorInterprocess(); return 0; }
+int main()
+{
+    runExecutorInterprocess();
+    return 0;
+}
