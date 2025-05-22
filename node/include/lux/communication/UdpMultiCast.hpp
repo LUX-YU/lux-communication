@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string_view>
+#include <lux/communication/visibility.h>
 
 namespace lux::communication
 {
@@ -11,7 +12,7 @@ namespace lux::communication
 	};
 
 	class UdpMultiCastImpl;
-	class UdpMultiCast
+	class LUX_COMMUNICATION_PUBLIC UdpMultiCast
 	{
 	public:
 		/*

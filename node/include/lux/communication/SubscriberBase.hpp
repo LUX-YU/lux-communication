@@ -17,7 +17,7 @@ namespace lux::communication
         }
     };
 
-    class LUX_COMMUNICATION_PUBLIC ISubscriberBase
+    class ISubscriberBase
     {
         friend class TimeOrderedExecutor;
     public:

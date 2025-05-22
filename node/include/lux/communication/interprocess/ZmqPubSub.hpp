@@ -67,7 +67,7 @@ inline std::optional<std::string> waitDiscovery(const std::string& topic, std::c
 }
 
 template<typename T>
-class LUX_COMMUNICATION_PUBLIC Publisher
+class Publisher
 {
 public:
     explicit Publisher(const std::string& topic, std::string endpoint = defaultEndpoint(topic))
@@ -91,7 +91,7 @@ private:
 };
 
 template<typename T, typename Callback>
-class LUX_COMMUNICATION_PUBLIC Subscriber
+class Subscriber
 {
 public:
     Subscriber(const std::string& topic, Callback cb)

@@ -26,7 +26,7 @@ namespace lux::communication::introprocess
 
     class Node; // Forward declaration
     template <typename T>
-    class LUX_COMMUNICATION_PUBLIC Subscriber : public ISubscriberBase
+    class Subscriber : public ISubscriberBase
     {
     public:
         using Callback = std::function<void(const T &)>;

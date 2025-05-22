@@ -23,7 +23,7 @@ namespace lux::communication
         Reentrant           // Execution in this group can be concurrent
     };
 
-    class LUX_COMMUNICATION_PUBLIC CallbackGroup
+    class CallbackGroup
     {
     public:
         explicit CallbackGroup(CallbackGroupType type = CallbackGroupType::MutuallyExclusive)

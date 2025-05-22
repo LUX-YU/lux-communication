@@ -19,7 +19,7 @@ namespace lux::communication::introprocess
     using lux::communication::Domain;
     using lux::communication::CallbackGroup;
     using lux::communication::CallbackGroupType;
-    class LUX_COMMUNICATION_PUBLIC Node
+    class Node
     {
     public:
         // Basic record structures remain the same
@@ -270,15 +270,14 @@ namespace lux::communication::introprocess
 }
 
 inline void lux::communication::Executor::addNode(std::shared_ptr<lux::communication::introprocess::Node> node)
+{
+    if (!node) return;
+    // For example, add the node's default callback group to the Executor
+    auto default_group = node->getDefaultCallbackGroup();
+    if (default_group)
     {
-        if (!node) return;
-        // For example, add the node's default callback group to the Executor
-        auto default_group = node->getDefaultCallbackGroup();
-        if (default_group)
-        {
-            addCallbackGroup(default_group);
-        }
-        // If you want to add all subscriber callback groups under the node more granularly,
-        // you can implement more complex interfaces in Node.
+        addCallbackGroup(default_group);
     }
-
+    // If you want to add all subscriber callback groups under the node more granularly,
+    // you can implement more complex interfaces in Node.
+}

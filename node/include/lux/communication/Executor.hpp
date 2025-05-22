@@ -27,7 +27,7 @@ namespace lux::communication
      * for executing callbacks. It handles waiting for new tasks and waking up when new data
      * arrives.
      */
-    class LUX_COMMUNICATION_PUBLIC Executor : public std::enable_shared_from_this<Executor>
+    class Executor : public std::enable_shared_from_this<Executor>
     {
     public:
         Executor() : running_(false) {}
@@ -184,7 +184,7 @@ namespace lux::communication
      * Processes callbacks sequentially in a single thread. It iterates over all callback groups,
      * collects ready subscribers, and executes their callbacks by invoking takeAll().
      */
-    class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
+    class SingleThreadedExecutor : public Executor
     {
     public:
         SingleThreadedExecutor() = default;
@@ -233,7 +233,7 @@ namespace lux::communication
      * - Mutually exclusive groups are processed sequentially in the current thread.
      * - Reentrant groups have their callbacks dispatched to the thread pool for parallel execution.
      */
-    class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
+    class MultiThreadedExecutor : public Executor
     {
     public:
         /**
@@ -343,7 +343,7 @@ namespace lux::communication
      * This executor only accepts MutuallyExclusive type callback groups and uses an optional delay
      * window (time_offset) to account for late-arriving messages.
      */
-    class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
+    class TimeOrderedExecutor : public Executor
     {
     public:
         /**

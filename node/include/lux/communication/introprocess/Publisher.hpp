@@ -10,7 +10,7 @@ namespace lux::communication::introprocess
 {
     class Node;
     template <typename T>
-    class LUX_COMMUNICATION_PUBLIC Publisher
+    class Publisher
     {
     public:
         friend class Node;
