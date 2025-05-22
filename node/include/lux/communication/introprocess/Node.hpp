@@ -135,6 +135,13 @@ namespace lux::communication::introprocess
             // 4) Construct the Subscriber
             auto sub = std::make_shared<Subscriber<T>>(this, sub_id, topic_ptr, std::forward<Func>(cb), group);
 
+            // Register the subscriber with its callback group so that
+            // Executor::spinSome() can collect it when data arrives.
+            if (group)
+            {
+                group->addSubscriber(sub.get());
+            }
+
             // 5) Record in the SparseSet
             SubscriberRecord sub_record{
                 .id = sub_id,
