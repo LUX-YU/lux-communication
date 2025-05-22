@@ -263,16 +263,5 @@ namespace lux::communication::introprocess
         }
     }
 
-    void Executor::addNode(std::shared_ptr<Node> node)
-    {
-        if (!node) return;
-        // For example, add the node's default callback group to the Executor
-        auto default_group = node->getDefaultCallbackGroup();
-        if (default_group)
-        {
-            addCallbackGroup(default_group);
-        }
-        // If you want to add all subscriber callback groups under the node more granularly,
-        // you can implement more complex interfaces in Node.
-    }
+
 }

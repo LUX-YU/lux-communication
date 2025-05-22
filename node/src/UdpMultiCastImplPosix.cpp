@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <poll.h>
+#include <fcntl.h>
 
 #include "lux/communication/visibility.h"
 
@@ -16,8 +17,11 @@ namespace lux::communication
 		UdpMultiCastImpl(std::string_view addr, int prt)
 		: addr(addr), port(prt)
 		{	
-			sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-			assert(sock != -1);
+                        sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+                        assert(sock != -1);
+
+                        int flags = fcntl(sock, F_GETFL, 0);
+                        fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 
 			int on = 1;
 			auto rst = setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));

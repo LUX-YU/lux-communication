@@ -3,7 +3,9 @@ find_package(stduuid  CONFIG REQUIRED)
 find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time)
 
 set(LUX_COMMUNICATION_NODE_SRC
-	${CMAKE_CURRENT_SOURCE_DIR}/src/Subscriber.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Subscriber.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/Executor.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/ZmqContext.cpp
 )
 
 if(WIN32)
@@ -30,13 +32,14 @@ component_include_directories(
 )
 
 target_link_libraries(
-	node 
-	PUBLIC
-	# cppzmq
-	lux::cxx::concurrent
-	lux::cxx::compile_time
-	PRIVATE
-	stduuid
+        node
+        PUBLIC
+        cppzmq
+        zmq
+        lux::cxx::concurrent
+        lux::cxx::compile_time
+        PRIVATE
+        stduuid
 )
 
 component_add_internal_dependencies(

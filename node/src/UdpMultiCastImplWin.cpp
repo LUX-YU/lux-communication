@@ -16,9 +16,10 @@ namespace lux::communication
 			int rst = WSAStartup(MAKEWORD(2, 2), &wsaData);
 			assert((rst == 0, "WSAStartup failed with error"));
 			
-			sock = socket(AF_INET, SOCK_DGRAM, 0);
-
-			assert(sock != INVALID_SOCKET);
+                        sock = socket(AF_INET, SOCK_DGRAM, 0);
+                        assert(sock != INVALID_SOCKET);
+                        u_long mode = 1;
+                        ioctlsocket(sock, FIONBIO, &mode); // non-blocking
 
 			BOOL reuse = TRUE;
 			rst = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, sizeof(reuse));

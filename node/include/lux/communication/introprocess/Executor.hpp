@@ -30,7 +30,7 @@ namespace lux::communication::introprocess
     {
     public:
         Executor() : running_(false) {}
-        virtual ~Executor() { stop(); }
+        virtual ~Executor();
 
         /**
          * @brief Adds a callback group to the executor.
