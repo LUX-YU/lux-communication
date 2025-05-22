@@ -1,9 +1,10 @@
 #pragma once
 #include <functional>
 #include <cstddef>
+#include <lux/communication/visibility.h>
 #include <lux/cxx/compile_time/move_only_function.hpp>
 
-namespace lux::communication::introprocess
+namespace lux::communication
 {
     struct TimeExecEntry
     {
@@ -16,7 +17,7 @@ namespace lux::communication::introprocess
         }
     };
 
-    class ISubscriberBase
+    class LUX_COMMUNICATION_PUBLIC ISubscriberBase
     {
         friend class TimeOrderedExecutor;
     public:

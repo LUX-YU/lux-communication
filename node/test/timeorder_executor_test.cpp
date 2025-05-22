@@ -25,7 +25,7 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
     auto node   = std::make_shared<lux::communication::introprocess::Node>("test_node", domain);
 
     // 2) Create TimeOrderedExecutor with a delay window
-    auto timeExec = std::make_shared<lux::communication::introprocess::TimeOrderedExecutor>(offset);
+    auto timeExec = std::make_shared<lux::communication::TimeOrderedExecutor>(offset);
     // Add the node's default callback group to the executor
     timeExec->addNode(node);
 

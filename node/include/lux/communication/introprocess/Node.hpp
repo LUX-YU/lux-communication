@@ -5,17 +5,21 @@
 #include <atomic>
 #include <functional>
 #include <memory>
-#include "Domain.hpp"
+#include <lux/communication/visibility.h>
+#include <lux/communication/Domain.hpp>
 #include "Publisher.hpp"
 #include "Subscriber.hpp"
-#include "Executor.hpp"
+#include <lux/communication/Executor.hpp>
 
 #include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/cxx/container/SparseSet.hpp>
 
 namespace lux::communication::introprocess
 {
-    class Node
+    using lux::communication::Domain;
+    using lux::communication::CallbackGroup;
+    using lux::communication::CallbackGroupType;
+    class LUX_COMMUNICATION_PUBLIC Node
     {
     public:
         // Basic record structures remain the same
@@ -263,7 +267,9 @@ namespace lux::communication::introprocess
         }
     }
 
-    void Executor::addNode(std::shared_ptr<Node> node)
+}
+
+inline void lux::communication::Executor::addNode(std::shared_ptr<lux::communication::introprocess::Node> node)
     {
         if (!node) return;
         // For example, add the node's default callback group to the Executor
@@ -275,4 +281,4 @@ namespace lux::communication::introprocess
         // If you want to add all subscriber callback groups under the node more granularly,
         // you can implement more complex interfaces in Node.
     }
-}
+

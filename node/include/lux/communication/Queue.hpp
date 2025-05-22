@@ -16,7 +16,7 @@
 #   include <lux/cxx/concurrent/BlockingQueue.hpp>
 #endif
 
-namespace lux::communication::introprocess
+namespace lux::communication
 {
     template<typename T> using message_t = std::shared_ptr<T>;
 #if defined(LUX_HAS_MOODYCAMEL_CONCURRENTQUEUE)

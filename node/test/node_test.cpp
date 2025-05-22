@@ -8,7 +8,7 @@
 
 // include headers according to project layout
 #include <lux/communication/introprocess/Node.hpp>
-#include <lux/communication/introprocess/Executor.hpp>
+#include <lux/communication/Executor.hpp>
 
 struct StringMsg
 {
@@ -57,7 +57,7 @@ void testDomainIsolation()
     );
 
     // Executor running nodeB
-    auto execB = std::make_shared<SingleThreadedExecutor>();
+    auto execB = std::make_shared<lux::communication::SingleThreadedExecutor>();
     // Add nodeB to the executor (default callback group)
     execB->addNode(nodeB);
 
@@ -117,7 +117,7 @@ void testSingleDomainMultiNode()
             });
 
         // Executor for nodeB
-        auto execB = std::make_shared<SingleThreadedExecutor>();
+        auto execB = std::make_shared<lux::communication::SingleThreadedExecutor>();
         execB->addNode(nodeB);
 
         // Start a thread to spin nodeB
@@ -194,7 +194,7 @@ void testMultiSubscriber()
         });
 
     // Executor for nodeB
-    auto execB = std::make_shared<SingleThreadedExecutor>();
+    auto execB = std::make_shared<lux::communication::SingleThreadedExecutor>();
     execB->addNode(nodeB);
     std::thread spinTh([&]{ execB->spin(); });
 
@@ -250,7 +250,7 @@ void testZeroCopyCheck()
     auto pub = node->createPublisher<StringMsg>("nocopy");
 
     // Executor
-    auto exec = std::make_shared<SingleThreadedExecutor>();
+    auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
     exec->addNode(node);
 
     std::thread th([&]{ exec->spin(); });
@@ -299,7 +299,7 @@ void testPerformanceSinglePubSub(int messageCount = 100000)
     auto pub = node->createPublisher<StringMsg>("perf_topic");
 
     // Executor
-    auto exec = std::make_shared<SingleThreadedExecutor>();
+    auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
     exec->addNode(node);
 
     std::thread spinTh([&]{
@@ -367,7 +367,7 @@ void testPerformanceMultiSubscriber(int subscriberCount = 5, int messageCount = 
     auto pub = node->createPublisher<StringMsg>("multi_perf");
 
     // Executor
-    auto exec = std::make_shared<SingleThreadedExecutor>();
+    auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
     exec->addNode(node);
     std::thread spinTh([&]{ exec->spin(); });
 
@@ -454,7 +454,7 @@ void testLatencySinglePubSub(int messageCount = 1000)
     auto pub = node->createPublisher<TimeStampedMsg>("latency_topic");
 
     // 5) Start Executor
-    auto exec = std::make_shared<SingleThreadedExecutor>();
+    auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
     exec->addNode(node);
 
     std::thread spinTh([&]{
@@ -533,8 +533,8 @@ void testMultiThreadedExecutorBasic(int threadCount = 4, int messageCount = 5000
         subs.push_back(s);
     }
 
-    // 4. Create MultiThreadedExecutor and add Node
-    auto exec = std::make_shared<MultiThreadedExecutor>(threadCount);
+    // 4. Create lux::communication::MultiThreadedExecutor and add Node
+    auto exec = std::make_shared<lux::communication::MultiThreadedExecutor>(threadCount);
     exec->addNode(node);
 
     // 5. Start spinning (threads process concurrently)
@@ -640,10 +640,10 @@ void testMultiThreadedExecutorWithCallbackGroups(int threadCount = 4, int messag
     // 5) Create Publisher
     auto pub = node->createPublisher<StringMsg>("group_topic");
 
-    // 6) Create MultiThreadedExecutor and add both groups
+    // 6) Create lux::communication::MultiThreadedExecutor and add both groups
     //    Note: addNode(node) would also add the default group
     //    Here we manually add groupR and groupM for clarity
-    auto exec = std::make_shared<MultiThreadedExecutor>(4);
+    auto exec = std::make_shared<lux::communication::MultiThreadedExecutor>(4);
     //exec->addNode(node); // alternatively add the whole node
     // or manually add both groups
     exec->addCallbackGroup(groupR);
@@ -715,7 +715,7 @@ void testPerformanceLargeMessage(int messageCount = 1000, size_t size = 1024*102
 
     auto pub = node->createPublisher<LargeMsg>("big_topic");
 
-    auto exec = std::make_shared<SingleThreadedExecutor>();
+    auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
     exec->addNode(node);
 
     std::thread th([&]{ exec->spin(); });
@@ -752,7 +752,7 @@ void testThreadLifecycleSafety()
     auto domain = std::make_shared<Domain>(1);
     auto node   = std::make_shared<Node>("LifeNode", domain);
 
-    auto exec = std::make_shared<MultiThreadedExecutor>(2);
+    auto exec = std::make_shared<lux::communication::MultiThreadedExecutor>(2);
     exec->addNode(node);
 
     std::atomic<bool> running{true};
@@ -815,7 +815,7 @@ void testMemoryLeakCheck(int messageCount = 1000)
 
     auto pub = node->createPublisher<CountingMsg>("mem_topic");
 
-    auto exec = std::make_shared<SingleThreadedExecutor>();
+    auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
     exec->addNode(node);
 
     std::thread spinTh([&]{ exec->spin(); });

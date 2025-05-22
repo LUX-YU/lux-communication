@@ -1,14 +1,18 @@
 #pragma once
 #include <functional>
 #include <memory>
-#include "Queue.hpp"
+#include <lux/communication/Queue.hpp>
 #include "Topic.hpp"
-#include "SubscriberBase.hpp"
-#include "CallbackGroup.hpp"
+#include <lux/communication/SubscriberBase.hpp>
+#include <lux/communication/CallbackGroup.hpp>
+#include <lux/communication/visibility.h>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 
 namespace lux::communication::introprocess
 {
+    using lux::communication::CallbackGroup;
+    using lux::communication::CallbackGroupType;
+    using lux::communication::ISubscriberBase;
     template <typename T>
     using SubscriberCallback = std::function<void(const std::shared_ptr<T>)>;
 
@@ -22,7 +26,7 @@ namespace lux::communication::introprocess
 
     class Node; // Forward declaration
     template <typename T>
-    class Subscriber : public ISubscriberBase
+    class LUX_COMMUNICATION_PUBLIC Subscriber : public ISubscriberBase
     {
     public:
         using Callback = std::function<void(const T &)>;

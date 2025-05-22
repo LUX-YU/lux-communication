@@ -8,9 +8,10 @@
 #include <unordered_set>
 #include <condition_variable>
 #include <lux/cxx/container/SparseSet.hpp>
-#include "SubscriberBase.hpp"
+#include <lux/communication/visibility.h>
+#include <lux/communication/SubscriberBase.hpp>
 
-namespace lux::communication::introprocess
+namespace lux::communication
 {
     // Forward declarations
     class Executor;
@@ -22,7 +23,7 @@ namespace lux::communication::introprocess
         Reentrant           // Execution in this group can be concurrent
     };
 
-    class CallbackGroup
+    class LUX_COMMUNICATION_PUBLIC CallbackGroup
     {
     public:
         explicit CallbackGroup(CallbackGroupType type = CallbackGroupType::MutuallyExclusive)

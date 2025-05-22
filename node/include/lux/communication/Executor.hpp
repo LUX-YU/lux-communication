@@ -8,16 +8,17 @@
 #include <thread>
 #include <unordered_set>
 
-#include "CallbackGroup.hpp"
-#include "SubscriberBase.hpp"
+#include <lux/communication/visibility.h>
+#include <lux/communication/CallbackGroup.hpp>
+#include <lux/communication/SubscriberBase.hpp>
 
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 #include <lux/cxx/concurrent/ThreadPool.hpp>
 
-namespace lux::communication::introprocess
+namespace lux::communication
 {
     // Forward declaration of Node class.
-    class Node;
+    namespace introprocess { class Node; }
 
     /**
      * @brief Base Executor class responsible for scheduling and executing callbacks.
@@ -26,7 +27,7 @@ namespace lux::communication::introprocess
      * for executing callbacks. It handles waiting for new tasks and waking up when new data
      * arrives.
      */
-    class Executor : public std::enable_shared_from_this<Executor>
+    class LUX_COMMUNICATION_PUBLIC Executor : public std::enable_shared_from_this<Executor>
     {
     public:
         Executor() : running_(false) {}
@@ -71,7 +72,7 @@ namespace lux::communication::introprocess
          *
          * @param node Shared pointer to the Node to add.
          */
-        virtual void addNode(std::shared_ptr<Node> node);
+        virtual void addNode(std::shared_ptr<introprocess::Node> node);
 
         /**
          * @brief Processes available callbacks once.
@@ -183,7 +184,7 @@ namespace lux::communication::introprocess
      * Processes callbacks sequentially in a single thread. It iterates over all callback groups,
      * collects ready subscribers, and executes their callbacks by invoking takeAll().
      */
-    class SingleThreadedExecutor : public Executor
+    class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
     {
     public:
         SingleThreadedExecutor() = default;
@@ -232,7 +233,7 @@ namespace lux::communication::introprocess
      * - Mutually exclusive groups are processed sequentially in the current thread.
      * - Reentrant groups have their callbacks dispatched to the thread pool for parallel execution.
      */
-    class MultiThreadedExecutor : public Executor
+    class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
     {
     public:
         /**
@@ -342,7 +343,7 @@ namespace lux::communication::introprocess
      * This executor only accepts MutuallyExclusive type callback groups and uses an optional delay
      * window (time_offset) to account for late-arriving messages.
      */
-    class TimeOrderedExecutor : public Executor
+    class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
     {
     public:
         /**
@@ -685,4 +686,4 @@ namespace lux::communication::introprocess
         return result;
     }
 
-} // namespace lux::communication::introprocess
+} // namespace lux::communication

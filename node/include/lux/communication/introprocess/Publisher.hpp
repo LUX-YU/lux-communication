@@ -3,13 +3,14 @@
 #include <string>
 #include <memory>
 #include <cassert>
+#include <lux/communication/visibility.h>
 #include "Topic.hpp"
 
 namespace lux::communication::introprocess
 {
     class Node;
     template <typename T>
-    class Publisher
+    class LUX_COMMUNICATION_PUBLIC Publisher
     {
     public:
         friend class Node;

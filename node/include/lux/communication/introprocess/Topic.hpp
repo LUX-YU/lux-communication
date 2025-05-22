@@ -7,10 +7,12 @@
 #include <memory>    // for std::unique_ptr
 #include "ITopicHolder.hpp"
 
+namespace lux::communication { class Domain; }
+
 namespace lux::communication::introprocess
 {
     // Forward declaration
-    class Domain;
+    using ::lux::communication::Domain;
     template <typename T>
     class Subscriber;
 
