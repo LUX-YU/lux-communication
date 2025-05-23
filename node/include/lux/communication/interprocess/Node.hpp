@@ -10,14 +10,16 @@
 #include <lux/communication/CallbackGroup.hpp>
 #include <lux/communication/interprocess/ZmqPubSub.hpp>
 #include <lux/communication/Executor.hpp>
+#include <lux/communication/Domain.hpp>
 #include <lux/communication/visibility.h>
 
 namespace lux::communication::interprocess {
 
 class Node {
 public:
-    explicit Node(const std::string& name)
-        : name_(name)
+    explicit Node(const std::string& name,
+                  std::shared_ptr<lux::communication::Domain> domain)
+        : name_(name), domain_(std::move(domain))
     {
         default_group_ = std::make_shared<lux::communication::CallbackGroup>(
             lux::communication::CallbackGroupType::MutuallyExclusive);
@@ -25,6 +27,8 @@ public:
     }
 
     ~Node() { stop(); }
+
+    int getDomainId() const { return domain_ ? domain_->getDomainId() : 0; }
 
     std::shared_ptr<lux::communication::CallbackGroup> getDefaultCallbackGroup() const
     {
@@ -70,25 +74,8 @@ public:
 
     void stop()
     {
-        auto exec = spinning_exec_.load();
-        if (exec)
-        {
-            exec->stop();
-        }
         for (auto& fn : subscriber_stoppers_) { fn(); }
         subscriber_stoppers_.clear();
-    }
-
-    void spin()
-    {
-        auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
-        for (auto& g : callback_groups_)
-        {
-            exec->addCallbackGroup(g);
-        }
-        spinning_exec_.store(exec.get(), std::memory_order_release);
-        exec->spin();
-        spinning_exec_.store(nullptr, std::memory_order_release);
     }
 
 private:
@@ -96,8 +83,8 @@ private:
     std::shared_ptr<lux::communication::CallbackGroup> default_group_;
     std::vector<std::shared_ptr<lux::communication::CallbackGroup>> callback_groups_;
     std::vector<std::function<void()>> subscriber_stoppers_;
-    std::atomic<lux::communication::Executor*> spinning_exec_{nullptr};
     int next_sub_id_{0};
-};
+    std::shared_ptr<lux::communication::Domain> domain_;
+}; 
 
 } // namespace lux::communication::interprocess

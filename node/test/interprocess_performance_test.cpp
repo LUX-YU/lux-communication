@@ -15,8 +15,9 @@ template<size_t SIZE>
 void throughputTest(int messageCount = 100000)
 {
     using namespace lux::communication;
-    interprocess::Node nodePub("pub");
-    interprocess::Node nodeSub("sub");
+    auto domain = std::make_shared<introprocess::Domain>(1);
+    interprocess::Node nodePub("pub", domain);
+    interprocess::Node nodeSub("sub", domain);
 
     struct Msg { std::array<uint8_t, SIZE> data; };
 
