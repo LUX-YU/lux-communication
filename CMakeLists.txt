@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 project(lux-communication)
+enable_testing()
 
 if(WIN32)
     set(CMAKE_DEBUG_POSTFIX d)
