@@ -12,8 +12,9 @@ struct Msg { int value; };
 static void runSpinTest()
 {
     using namespace lux::communication;
-    interprocess::Node nodePub("pub");
-    interprocess::Node nodeSub("sub");
+    auto domain = std::make_shared<introprocess::Domain>(1);
+    interprocess::Node nodePub("pub", domain);
+    interprocess::Node nodeSub("sub", domain);
 
     auto group2 = std::make_shared<CallbackGroup>(CallbackGroupType::MutuallyExclusive);
     std::atomic<int> count1{0};
@@ -22,7 +23,9 @@ static void runSpinTest()
     auto sub1 = nodeSub.createSubscriber<Msg>("topic", [&](const Msg&){ count1++; });
     auto sub2 = nodeSub.createSubscriber<Msg>("topic", [&](const Msg&){ count2++; }, group2);
 
-    std::thread spinThread([&]{ nodeSub.spin(); });
+    auto exec = std::make_shared<SingleThreadedExecutor>();
+    exec->addCallbackGroup(nodeSub.getDefaultCallbackGroup());
+    std::thread spinThread([&]{ exec->spin(); });
 
     auto pub = nodePub.createPublisher<Msg>("topic");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -35,6 +38,7 @@ static void runSpinTest()
 
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
+    exec->stop();
     nodeSub.stop();
     spinThread.join();
     nodePub.stop();

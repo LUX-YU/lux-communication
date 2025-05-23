@@ -17,8 +17,9 @@ void testLifecycle()
     using namespace lux::communication;
     std::cout << "\n=== lifecycle test ===\n";
     {
-        interprocess::Node nodeA("A");
-        interprocess::Node nodeB("B");
+        auto domain = std::make_shared<introprocess::Domain>(1);
+        interprocess::Node nodeA("A", domain);
+        interprocess::Node nodeB("B", domain);
 
         std::atomic<int> count{0};
         auto sub = nodeB.createSubscriber<Msg>("ping", [&](const Msg&m){count++;});
@@ -39,7 +40,7 @@ void testIntraInter()
     std::cout << "\n=== intra & inter mixed ===\n";
     auto domain = std::make_shared<introprocess::Domain>(1);
     auto inode = std::make_shared<introprocess::Node>("inode", domain);
-    interprocess::Node pnode("pnode");
+    interprocess::Node pnode("pnode", domain);
 
     std::atomic<int> intraCount{0}, interCount{0};
 

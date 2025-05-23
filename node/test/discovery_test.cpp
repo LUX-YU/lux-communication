@@ -13,7 +13,8 @@ struct IntMsg { int value; };
 static void runDiscoveryTest()
 {
     using namespace lux::communication;
-    interprocess::Node node_sub("sub");
+    auto domain = std::make_shared<introprocess::Domain>(1);
+    interprocess::Node node_sub("sub", domain);
     std::atomic<int> count{0};
 
     auto exec = std::make_shared<SingleThreadedExecutor>();
@@ -24,7 +25,7 @@ static void runDiscoveryTest()
     // Start publisher a bit later to test discovery
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    interprocess::Node nodePub("pub");
+    interprocess::Node nodePub("pub", domain);
     auto pub = nodePub.createPublisher<IntMsg>("topic");
 
     // Give subscriber time to connect to the new publisher

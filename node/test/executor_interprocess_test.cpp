@@ -15,8 +15,9 @@ void runExecutorInterprocess()
     using namespace lux::communication;
 
     // Publisher node and subscriber node
-    interprocess::Node nodePub("pub");
-    interprocess::Node nodeSub("sub");
+    auto domain = std::make_shared<introprocess::Domain>(1);
+    interprocess::Node nodePub("pub", domain);
+    interprocess::Node nodeSub("sub", domain);
 
     std::atomic<int> subCount1{0};
     std::atomic<int> subCount2{0};
