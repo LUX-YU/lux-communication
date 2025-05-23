@@ -91,4 +91,4 @@ namespace lux::communication
         std::weak_ptr<Executor>                     executor_;
     };
 
-} // namespace lux::communication::introprocess
+} // namespace lux::communication::intraprocess

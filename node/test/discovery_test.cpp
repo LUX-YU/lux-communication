@@ -6,7 +6,7 @@
 
 #include <lux/communication/interprocess/Node.hpp>
 #include <lux/communication/Executor.hpp>
-#include <lux/communication/introprocess/Node.hpp> // for Executor::addNode
+#include <lux/communication/intraprocess/Node.hpp> // for Executor::addNode
 
 struct IntMsg { int value; };
 

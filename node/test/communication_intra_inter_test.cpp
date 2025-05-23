@@ -5,14 +5,14 @@
 #include <vector>
 #include <memory>
 
-#include <lux/communication/introprocess/Node.hpp>
+#include <lux/communication/intraprocess/Node.hpp>
 #include <lux/communication/interprocess/Node.hpp>
 #include <lux/communication/Executor.hpp>
 
 struct Msg { int value; };
 
 // Test RAII lifecycle for interprocess publisher/subscriber
-void testLifecycle()
+static void testLifecycle()
 {
     using namespace lux::communication;
     std::cout << "\n=== lifecycle test ===\n";
@@ -33,12 +33,12 @@ void testLifecycle()
 }
 
 // Test intra and interprocess in same executor
-void testIntraInter()
+static void testIntraInter()
 {
     using namespace lux::communication;
     std::cout << "\n=== intra & inter mixed ===\n";
-    auto domain = std::make_shared<introprocess::Domain>(1);
-    auto inode = std::make_shared<introprocess::Node>("inode", domain);
+    auto domain = std::make_shared<intraprocess::Domain>(1);
+    auto inode = std::make_shared<intraprocess::Node>("inode", domain);
     interprocess::Node pnode("pnode");
 
     std::atomic<int> intraCount{0}, interCount{0};

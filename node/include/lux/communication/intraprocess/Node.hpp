@@ -14,7 +14,7 @@
 #include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/cxx/container/SparseSet.hpp>
 
-namespace lux::communication::introprocess
+namespace lux::communication::intraprocess
 {
     using lux::communication::Domain;
     using lux::communication::CallbackGroup;
@@ -276,7 +276,7 @@ namespace lux::communication::introprocess
 
 }
 
-inline void lux::communication::Executor::addNode(std::shared_ptr<lux::communication::introprocess::Node> node)
+inline void lux::communication::Executor::addNode(std::shared_ptr<lux::communication::intraprocess::Node> node)
 {
     if (!node) return;
     // For example, add the node's default callback group to the Executor

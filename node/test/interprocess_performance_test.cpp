@@ -7,7 +7,7 @@
 
 #include <lux/communication/interprocess/Node.hpp>
 #include <lux/communication/Executor.hpp>
-#include <lux/communication/introprocess/Node.hpp> // Executor::addNode
+#include <lux/communication/intraprocess/Node.hpp> // Executor::addNode
 
 // Generic throughput test template for different message sizes
 
