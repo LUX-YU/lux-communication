@@ -131,6 +131,7 @@ namespace lux::communication
          * @return true if at least one callback is ready, false otherwise.
          */
         virtual bool checkRunnable() {
+            std::lock_guard<std::mutex> lock(mutex_);
             for (auto& g : callback_groups_)
             {
                 if (g->hasReadySubscribers())
@@ -245,8 +246,6 @@ namespace lux::communication
             }
 
             // 2) Process each group and collect ready subscribers.
-            std::vector<std::future<void>> futures;
-            futures.reserve(64); // Pre-allocate for efficiency.
 
             for (auto& group : groups_copy)
             {
@@ -271,19 +270,9 @@ namespace lux::communication
                     {
                         if (!running_)
                             break;
-                        // Submit the callback execution asynchronously.
-                        futures.push_back(
-                            thread_pool_.submit(
-                                [sub] { sub->takeAll(); })
-                        );
+                        thread_pool_.submit([sub] { sub->takeAll(); });
                     }
                 }
-            }
-
-            // 3) Wait for all asynchronously dispatched callbacks to finish.
-            for (auto& f : futures)
-            {
-                f.wait();
             }
         }
 
@@ -498,21 +487,11 @@ namespace lux::communication
             }
 
             // Process entries in the buffer without additional locking (single-threaded).
-            while (!buffer_.empty())
+            while (!buffer_.empty() && buffer_.top().timestamp_ns <= cutoff)
             {
-                const auto& top = buffer_.top();
-                if (top.timestamp_ns <= cutoff)
-                {
-                    // Execute the callback for the top entry.
-                    auto entry = std::move(const_cast<TimeExecEntry&>(top));
-                    buffer_.pop();
-                    entry.invoker();
-                }
-                else
-                {
-                    // The top entry is not yet ready; break out of the loop.
-                    break;
-                }
+                auto entry = buffer_.top();
+                buffer_.pop();
+                entry.invoker();
             }
         }
 
@@ -565,15 +544,14 @@ namespace lux::communication
                 earliest_ns = (top.timestamp_ns + static_cast<uint64_t>(time_offset_.count())) - now_ns;
             }
 
-            // Sanity check: if the wait duration is unreasonably large, simply wait indefinitely.
-            if (earliest_ns > 10ull * 365ull * 24ull * 3600ull * 1'000'000'000ull)
+            auto wait_dur = std::chrono::nanoseconds(earliest_ns);
+            if (wait_dur >= std::chrono::steady_clock::duration::max())
             {
                 waitCondition();
                 return;
             }
 
             // Perform a timed wait for the calculated duration.
-            auto wait_dur = std::chrono::nanoseconds(earliest_ns);
             std::unique_lock<std::mutex> lk(cv_mutex_);
             cv_.wait_for(lk, wait_dur,
                 [this] { return !running_.load() || !buffer_.empty(); }
@@ -597,8 +575,11 @@ namespace lux::communication
     void CallbackGroup::notify(ISubscriberBase* sub)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        // Add the subscriber to the ready list.
-        ready_list_.push_back(sub);
+        if (sub && sub->setReadyIfNot())
+        {
+            // Add the subscriber to the ready list only if it was not ready before
+            ready_list_.push_back(sub);
+        }
         // Notify the associated Executor to wake up and process callbacks.
         auto exec = executor_.lock();
         if (exec)
