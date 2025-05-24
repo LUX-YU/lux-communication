@@ -56,10 +56,11 @@ namespace lux::communication
             }
         }
 
-		bool hasReadySubscribers() const
-		{
-			return !ready_list_.empty();
-		}
+        bool hasReadySubscribers() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return !ready_list_.empty();
+        }
 
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor

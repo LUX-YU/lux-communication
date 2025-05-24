@@ -106,7 +106,7 @@ private:
             std::memcpy(&value, msg.data(), sizeof(T));
             auto ptr = std::make_shared<T>(std::move(value));
             push(queue_, std::move(ptr));
-            if (callback_group_ && setReadyIfNot())
+            if (callback_group_)
             {
                 callback_group_->notify(this);
             }
