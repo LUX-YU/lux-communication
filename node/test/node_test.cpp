@@ -7,7 +7,7 @@
 #include <cassert>
 
 // include headers according to project layout
-#include <lux/communication/introprocess/Node.hpp>
+#include <lux/communication/intraprocess/Node.hpp>
 #include <lux/communication/Executor.hpp>
 
 struct StringMsg
@@ -31,7 +31,7 @@ struct ComplexMsg
  */
 void testDomainIsolation()
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testDomainIsolation ===\n";
     auto domain1 = std::make_shared<Domain>(1);
@@ -95,7 +95,7 @@ void testDomainIsolation()
  */
 void testSingleDomainMultiNode()
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testSingleDomainMultiNode ===\n";
 
@@ -154,7 +154,7 @@ void testSingleDomainMultiNode()
  */
 void testMultiSubscriber()
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testMultiSubscriber ===\n";
 
@@ -229,7 +229,7 @@ void testMultiSubscriber()
  */
 void testZeroCopyCheck()
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testZeroCopyCheck ===\n";
 
@@ -280,7 +280,7 @@ void testZeroCopyCheck()
  */
 void testPerformanceSinglePubSub(int messageCount = 100000)
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testPerformanceSinglePubSub ===\n";
 
@@ -338,7 +338,7 @@ void testPerformanceSinglePubSub(int messageCount = 100000)
  */
 void testPerformanceMultiSubscriber(int subscriberCount = 5, int messageCount = 50000)
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testPerformanceMultiSubscriber ===\n";
 
@@ -422,7 +422,7 @@ struct TimeStampedMsg
  */
 void testLatencySinglePubSub(int messageCount = 1000)
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testLatencySinglePubSub ===\n";
 
@@ -502,7 +502,7 @@ void testLatencySinglePubSub(int messageCount = 1000)
 
 void testMultiThreadedExecutorBasic(int threadCount = 4, int messageCount = 50000)
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testMultiThreadedExecutorBasic ===\n";
 
@@ -584,7 +584,7 @@ void testMultiThreadedExecutorBasic(int threadCount = 4, int messageCount = 5000
  */
 void testMultiThreadedExecutorWithCallbackGroups(int threadCount = 4, int messageCount = 10000)
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testMultiThreadedExecutorWithCallbackGroups ===\n";
 
@@ -699,7 +699,7 @@ struct LargeMsg
 // Performance test: large message throughput
 void testPerformanceLargeMessage(int messageCount = 1000, size_t size = 1024*1024)
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testPerformanceLargeMessage ===\n";
 
@@ -745,7 +745,7 @@ void testPerformanceLargeMessage(int messageCount = 1000, size_t size = 1024*102
 // Thread lifecycle safety test
 void testThreadLifecycleSafety()
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testThreadLifecycleSafety ===\n";
 
@@ -802,7 +802,7 @@ std::atomic<int> CountingMsg::liveCount{0};
 
 void testMemoryLeakCheck(int messageCount = 1000)
 {
-    using namespace lux::communication::introprocess;
+    using namespace lux::communication::intraprocess;
 
     std::cout << "\n=== testMemoryLeakCheck ===\n";
 

@@ -7,7 +7,7 @@
 
 // Assume the following headers provide Domain, Node, TimeOrderedExecutor,
 // Publisher, Subscriber, ImuStampedS, ImageStampedS, timestamp utilities, etc.
-#include <lux/communication/introprocess/Node.hpp>
+#include <lux/communication/intraprocess/Node.hpp>
 #include "lux/communication/builtin_msgs/sensor_msgs/imu_stamped.st.h"
 #include "lux/communication/builtin_msgs/sensor_msgs/image_stamped.st.h"
 #include "lux/communication/builtin_msgs/common_msgs/timestamp.st.h"
@@ -21,8 +21,8 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
                           std::atomic<uint64_t> &cam_out_of_order_count)
 {
     // 1) Create Domain / Node
-    auto domain = std::make_shared<lux::communication::introprocess::Domain>(0);
-    auto node   = std::make_shared<lux::communication::introprocess::Node>("test_node", domain);
+    auto domain = std::make_shared<lux::communication::intraprocess::Domain>(0);
+    auto node   = std::make_shared<lux::communication::intraprocess::Node>("test_node", domain);
 
     // 2) Create TimeOrderedExecutor with a delay window
     auto timeExec = std::make_shared<lux::communication::TimeOrderedExecutor>(offset);

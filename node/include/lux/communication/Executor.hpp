@@ -18,7 +18,7 @@
 namespace lux::communication
 {
     // Forward declaration of Node class.
-    namespace introprocess { class Node; }
+    namespace intraprocess { class Node; }
 
     /**
      * @brief Base Executor class responsible for scheduling and executing callbacks.
@@ -72,7 +72,7 @@ namespace lux::communication
          *
          * @param node Shared pointer to the Node to add.
          */
-        virtual void addNode(std::shared_ptr<introprocess::Node> node);
+        virtual void addNode(std::shared_ptr<intraprocess::Node> node);
 
         /**
          * @brief Processes available callbacks once.

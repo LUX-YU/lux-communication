@@ -5,7 +5,7 @@
 #include <atomic>
 #include <lux/cxx/compile_time/type_info.hpp>
 
-namespace lux::communication::introprocess
+namespace lux::communication::intraprocess
 {
     class ITopicHolder
     {

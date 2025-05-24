@@ -6,7 +6,7 @@
 #include <lux/communication/visibility.h>
 #include "Topic.hpp"
 
-namespace lux::communication::introprocess
+namespace lux::communication::intraprocess
 {
     class Node;
     template <typename T>

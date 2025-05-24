@@ -8,7 +8,7 @@
 #include <lux/communication/visibility.h>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 
-namespace lux::communication::introprocess
+namespace lux::communication::intraprocess
 {
     using lux::communication::CallbackGroup;
     using lux::communication::CallbackGroupType;

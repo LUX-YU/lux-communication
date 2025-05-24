@@ -9,7 +9,7 @@
 
 namespace lux::communication { class Domain; }
 
-namespace lux::communication::introprocess
+namespace lux::communication::intraprocess
 {
     // Forward declaration
     using ::lux::communication::Domain;
@@ -201,4 +201,4 @@ namespace lux::communication::introprocess
         // Atomic pointer to an immutable "SubscriberList"
         std::atomic<detail::SubscriberList<T>*> subs_;
     };
-} // namespace lux::communication::introprocess
+} // namespace lux::communication::intraprocess
