@@ -33,46 +33,16 @@ namespace lux::communication
         Executor() : running_(false) {}
         virtual ~Executor() { stop(); }
 
-        /**
-         * @brief Adds a callback group to the executor.
-         *
-         * Inserts the callback group into the executor's internal set and informs the group
-         * about its associated executor.
-         *
-         * @param group Shared pointer to the callback group to be added.
-         */
-        virtual void addCallbackGroup(std::shared_ptr<CallbackGroup> group)
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            callback_groups_.insert(group);
-            // Inform the callback group about the Executor it is attached to.
-            group->setExecutor(shared_from_this());
-        }
-
-        /**
-         * @brief Removes a callback group from the executor.
-         *
-         * Erases the specified callback group from the internal set.
-         * Optionally, one might call group->setExecutor(nullptr) before removal.
-         *
-         * @param group Shared pointer to the callback group to be removed.
-         */
-        virtual void removeCallbackGroup(std::shared_ptr<CallbackGroup> group)
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            // Optionally: group->setExecutor(nullptr);
-            callback_groups_.erase(group);
-        }
 
         /**
          * @brief Adds a Node's callback groups to the executor.
-         *
-         * This function allows a Node to register its callback groups with the Executor.
-         * The implementation should traverse the Node's subscribers and add their callback groups.
-         *
-         * @param node Shared pointer to the Node to add.
          */
         virtual void addNode(std::shared_ptr<intraprocess::Node> node);
+
+        /**
+         * @brief Removes a Node's callback groups from the executor.
+         */
+        virtual void removeNode(std::shared_ptr<intraprocess::Node> node);
 
         /**
          * @brief Processes available callbacks once.
@@ -367,24 +337,9 @@ namespace lux::communication
         // Override Executor interface methods
         // ----------------------------------------------------------------
 
-        /**
-         * @brief Adds a callback group to the executor.
-         *
-         * Only MutuallyExclusive callback groups are supported. Adding a Reentrant group
-         * will throw a runtime error.
-         *
-         * @param group Shared pointer to the callback group to be added.
-         */
-        void addCallbackGroup(std::shared_ptr<CallbackGroup> group) override
-        {
-            if (!group)
-                return;
-            if (group->getType() == CallbackGroupType::Reentrant)
-            {
-                throw std::runtime_error("[TimeOrderedExecutor] Reentrant group not supported in single-thread time-order mode!");
-            }
-            Executor::addCallbackGroup(group);
-        }
+        void addNode(std::shared_ptr<intraprocess::Node> node) override;
+
+
 
         /**
          * @brief Processes ready callbacks in time order.

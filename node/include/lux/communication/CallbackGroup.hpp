@@ -70,7 +70,7 @@ namespace lux::communication
         
         std::vector<ISubscriberBase*> collectAllSubscribers();
 
-        // Set/get Executor (called by Executor::addCallbackGroup())
+        // Set/get Executor (called by Executor::addNode())
         void setExecutor(std::shared_ptr<Executor> exec) { executor_ = exec; }
         std::shared_ptr<Executor> getExecutor() const { return executor_.lock(); }
 

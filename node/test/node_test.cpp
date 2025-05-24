@@ -644,10 +644,7 @@ void testMultiThreadedExecutorWithCallbackGroups(int threadCount = 4, int messag
     //    Note: addNode(node) would also add the default group
     //    Here we manually add groupR and groupM for clarity
     auto exec = std::make_shared<lux::communication::MultiThreadedExecutor>(4);
-    //exec->addNode(node); // alternatively add the whole node
-    // or manually add both groups
-    exec->addCallbackGroup(groupR);
-    exec->addCallbackGroup(groupM);
+    exec->addNode(node); // add all callback groups of the node
 
     // 7) Start spinning
     std::thread spinTh([&]{
