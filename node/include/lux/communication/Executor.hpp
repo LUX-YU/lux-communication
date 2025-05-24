@@ -107,8 +107,13 @@ namespace lux::communication
         void waitCondition()
         {
             std::unique_lock<std::mutex> lock(cv_mutex_);
-            cv_.wait(lock, [this]
-                { return !running_.load() || checkRunnable(); });
+            cv_.wait(
+                lock, 
+                [this]
+                { 
+                    return !running_.load() || checkRunnable(); 
+                }
+            );
         }
 
         /**
@@ -118,7 +123,7 @@ namespace lux::communication
          */
         void notifyCondition()
         {
-            std::lock_guard<std::mutex> lock(cv_mutex_);
+            std::lock_guard lk(cv_mutex_);
             cv_.notify_all();
         }
 
@@ -574,18 +579,15 @@ namespace lux::communication
      */
     void CallbackGroup::notify(ISubscriberBase* sub)
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (sub && sub->setReadyIfNot())
+        std::shared_ptr<Executor> ex;
         {
-            // Add the subscriber to the ready list only if it was not ready before
-            ready_list_.push_back(sub);
+            std::lock_guard lk(mutex_);
+            if (sub && sub->setReadyIfNot())
+                ready_list_.push_back(sub);
+            has_ready_.store(true, std::memory_order_release);
+            ex = executor_.lock();
         }
-        // Notify the associated Executor to wake up and process callbacks.
-        auto exec = executor_.lock();
-        if (exec)
-        {
-            exec->wakeup();
-        }
+        if (ex) ex->wakeup();
     }
 
     /**
@@ -597,10 +599,11 @@ namespace lux::communication
      */
     std::vector<ISubscriberBase*> CallbackGroup::collectReadySubscribers()
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<ISubscriberBase*> result;
-        result.swap(ready_list_);
-        return result;
+        std::lock_guard lk(mutex_);
+        has_ready_.store(false, std::memory_order_release);
+        std::vector<ISubscriberBase*> out;
+        out.swap(ready_list_);
+        return out;
     }
 
     /**

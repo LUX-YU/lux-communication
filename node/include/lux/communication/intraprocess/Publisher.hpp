@@ -51,7 +51,7 @@ namespace lux::communication::intraprocess
         {
             if (topic_)
             {
-                auto ptr = makeRcUnique<T>(std::forward<Args>(args)...);
+                auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
                 topic_->publish(std::move(ptr));
             }
         }

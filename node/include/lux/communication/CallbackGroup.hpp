@@ -58,8 +58,7 @@ namespace lux::communication
 
         bool hasReadySubscribers() const
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            return !ready_list_.empty();
+            return has_ready_.load(std::memory_order_acquire);
         }
 
         // When a particular Subscriber has new data
@@ -90,6 +89,8 @@ namespace lux::communication
 
         // A weak reference to whichever Executor is responsible for this group
         std::weak_ptr<Executor>                     executor_;
+
+        std::atomic<bool>                           has_ready_{ false };
     };
 
 } // namespace lux::communication::intraprocess
