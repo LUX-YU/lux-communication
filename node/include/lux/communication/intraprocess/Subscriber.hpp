@@ -65,7 +65,7 @@ namespace lux::communication::intraprocess
         {
             push(queue_, std::move(msg));
 
-            if (callback_group_ && setReadyIfNot())
+            if (callback_group_)
             {
                 callback_group_->notify(this);
             }
