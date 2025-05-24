@@ -2,14 +2,13 @@
 #include <functional>
 #include <cstddef>
 #include <lux/communication/visibility.h>
-#include <lux/cxx/compile_time/move_only_function.hpp>
 
 namespace lux::communication
 {
     struct TimeExecEntry
     {
         uint64_t timestamp_ns;
-        lux::cxx::move_only_function<void ()> invoker;
+        std::function<void ()> invoker;
         
         bool operator<(const TimeExecEntry &rhs) const
         {

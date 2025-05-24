@@ -39,8 +39,8 @@ namespace lux::communication
             {
                 // Already exists
                 size_t idx = it->second;
-                auto ptr = dynamic_cast<intraprocess::Topic<T> *>(topics_[idx].get());
-                assert(ptr && "Topic type mismatch!");
+                assert(topics_[idx]->getType() == intraprocess::Topic<T>::type_info && "Topic type mismatch!");
+                auto ptr = static_cast<intraprocess::Topic<T> *>(topics_[idx].get());
                 ptr->incRef();
                 return ptr;
             }
@@ -53,7 +53,7 @@ namespace lux::communication
                 size_t newIdx = topics_.size() - 1;
                 topic_index_map_[key] = newIdx;
 
-                return dynamic_cast<intraprocess::Topic<T> *>(topics_[newIdx].get());
+                return static_cast<intraprocess::Topic<T> *>(topics_[newIdx].get());
             }
         }
 
