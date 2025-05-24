@@ -8,7 +8,8 @@
 #include <atomic>
 
 #include <lux/communication/CallbackGroup.hpp>
-#include <lux/communication/interprocess/ZmqPubSub.hpp>
+#include <lux/communication/interprocess/Publisher.hpp>
+#include <lux/communication/interprocess/Subscriber.hpp>
 #include <lux/communication/Executor.hpp>
 #include <lux/communication/Domain.hpp>
 #include <lux/communication/visibility.h>

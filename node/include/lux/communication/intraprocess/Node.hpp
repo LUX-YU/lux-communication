@@ -42,6 +42,7 @@ namespace lux::communication::intraprocess
             : node_name_(nodeName), domain_(domain), running_(false)
         {
             default_callback_group_ = std::make_shared<CallbackGroup>(CallbackGroupType::MutuallyExclusive);
+            callback_groups_.push_back(default_callback_group_);
         }
 
         ~Node()
@@ -55,6 +56,11 @@ namespace lux::communication::intraprocess
         std::shared_ptr<CallbackGroup> getDefaultCallbackGroup() const
         {
             return default_callback_group_;
+        }
+
+        const std::vector<std::shared_ptr<CallbackGroup>>& getCallbackGroups() const
+        {
+            return callback_groups_;
         }
 
         /**
@@ -140,6 +146,19 @@ namespace lux::communication::intraprocess
             if (group)
             {
                 group->addSubscriber(sub.get());
+                bool exists = false;
+                for (auto& g : callback_groups_)
+                {
+                    if (g == group)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists)
+                {
+                    callback_groups_.push_back(group);
+                }
             }
 
             // 5) Record in the SparseSet
@@ -215,6 +234,7 @@ namespace lux::communication::intraprocess
 
         // Default callback group
         std::shared_ptr<CallbackGroup> default_callback_group_;
+        std::vector<std::shared_ptr<CallbackGroup>> callback_groups_;
     };
 
 
@@ -279,12 +299,35 @@ namespace lux::communication::intraprocess
 inline void lux::communication::Executor::addNode(std::shared_ptr<lux::communication::intraprocess::Node> node)
 {
     if (!node) return;
-    // For example, add the node's default callback group to the Executor
-    auto default_group = node->getDefaultCallbackGroup();
-    if (default_group)
+    auto groups = node->getCallbackGroups();
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto& g : groups)
     {
-        addCallbackGroup(default_group);
+        callback_groups_.insert(g);
+        g->setExecutor(shared_from_this());
     }
-    // If you want to add all subscriber callback groups under the node more granularly,
-    // you can implement more complex interfaces in Node.
+}
+
+inline void lux::communication::Executor::removeNode(std::shared_ptr<lux::communication::intraprocess::Node> node)
+{
+    if (!node) return;
+    auto groups = node->getCallbackGroups();
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto& g : groups)
+    {
+        callback_groups_.erase(g);
+    }
+}
+
+inline void lux::communication::TimeOrderedExecutor::addNode(std::shared_ptr<lux::communication::intraprocess::Node> node)
+{
+    if (!node) return;
+    for (auto& g : node->getCallbackGroups())
+    {
+        if (g->getType() == CallbackGroupType::Reentrant)
+        {
+            throw std::runtime_error("[TimeOrderedExecutor] Reentrant group not supported in single-thread time-order mode!");
+        }
+    }
+    Executor::addNode(std::move(node));
 }
