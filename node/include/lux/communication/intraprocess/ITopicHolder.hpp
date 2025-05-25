@@ -19,26 +19,13 @@ namespace lux::communication::intraprocess
         virtual lux::cxx::basic_type_info getType() const = 0;
 
         // Reference count +1
-        void incRef()
-        {
-            ref_count_.fetch_add(1, std::memory_order_relaxed);
-        }
+        void incRef();
 
         // Reference count -1
-        void decRef()
-        {
-            ref_count_.fetch_sub(1, std::memory_order_acq_rel);
-            if (ref_count_.load(std::memory_order_acquire) == 0)
-            {
-                onNoRef();
-            }
-        }
+        void decRef();
 
         // Current reference count
-        int refCount() const
-        {
-            return ref_count_;
-        }
+        int refCount() const;
 
     protected:
         // When reference count reaches zero, let subclasses handle it

@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <cstddef>
+#include <cstdint>
 #include <lux/communication/visibility.h>
 
 namespace lux::communication
@@ -10,17 +11,14 @@ namespace lux::communication
         uint64_t timestamp_ns;
         std::function<void ()> invoker;
         
-        bool operator<(const TimeExecEntry &rhs) const
-        {
-            return timestamp_ns > rhs.timestamp_ns;
-        }
+        bool operator<(const TimeExecEntry &rhs) const;
     };
 
     class ISubscriberBase
     {
         friend class TimeOrderedExecutor;
     public:
-        ISubscriberBase(int id) : id_(id){}
+        ISubscriberBase(int id);
 
         virtual ~ISubscriberBase() = default;
 
@@ -29,7 +27,7 @@ namespace lux::communication
         virtual bool setReadyIfNot() = 0;
         virtual void clearReady() = 0;
 
-		int getId() const { return id_; }
+                int getId() const;
 
     private:
         virtual void drainAll(std::vector<TimeExecEntry>& out) = 0;

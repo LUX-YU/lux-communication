@@ -19,11 +19,8 @@
 
 namespace lux::communication::interprocess {
 
-inline std::optional<std::string> waitDiscovery(const std::string& /*topic*/,
-    std::chrono::milliseconds /*timeout*/ = std::chrono::milliseconds{200})
-{
-    return std::nullopt;
-}
+std::optional<std::string> waitDiscovery(const std::string& topic,
+    std::chrono::milliseconds timeout = std::chrono::milliseconds{200});
 
 template<typename T>
 class Subscriber : public lux::communication::ISubscriberBase

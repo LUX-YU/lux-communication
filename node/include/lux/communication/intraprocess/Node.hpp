@@ -38,30 +38,14 @@ namespace lux::communication::intraprocess
             std::function<void()>     spin_fn;
         };
 
-        explicit Node(const std::string& nodeName, std::shared_ptr<Domain> domain)
-            : node_name_(nodeName), domain_(domain), running_(false)
-        {
-            default_callback_group_ = std::make_shared<CallbackGroup>(CallbackGroupType::MutuallyExclusive);
-            callback_groups_.push_back(default_callback_group_);
-        }
-
-        ~Node()
-        {
-            stop();
-        }
+        explicit Node(const std::string& nodeName, std::shared_ptr<Domain> domain);
+        ~Node();
 
         int getDomainId() const { return domain_->getDomainId(); }
         const std::string& getName() const { return node_name_; }
 
-        std::shared_ptr<CallbackGroup> getDefaultCallbackGroup() const
-        {
-            return default_callback_group_;
-        }
-
-        const std::vector<std::shared_ptr<CallbackGroup>>& getCallbackGroups() const
-        {
-            return callback_groups_;
-        }
+        std::shared_ptr<CallbackGroup> getDefaultCallbackGroup() const;
+        const std::vector<std::shared_ptr<CallbackGroup>>& getCallbackGroups() const;
 
         /**
          * @brief Create a Publisher
@@ -181,36 +165,17 @@ namespace lux::communication::intraprocess
          *
          * Now we just call `erase` on the SparseSet and store the ID into free_pub_ids_.
          */
-        void removePublisher(int pub_id)
-        {
-            std::lock_guard<std::mutex> lock(mutex_pub_);
-            if (pub_set_.contains(pub_id))
-            {
-                pub_set_.erase(pub_id);
-                free_pub_ids_.push_back(pub_id);
-            }
-        }
+        void removePublisher(int pub_id);
 
         /**
          * @brief Remove a Subscriber by ID.
          *
          * Same idea for the subscriber SparseSet.
          */
-        void removeSubscriber(int sub_id)
-        {
-            std::lock_guard<std::mutex> lock(mutex_sub_);
-            if (sub_set_.contains(sub_id))
-            {
-                sub_set_.erase(sub_id);
-                free_sub_ids_.push_back(sub_id);
-            }
-        }
+        void removeSubscriber(int sub_id);
 
         // Stop the Node's activities (placeholder)
-        void stop()
-        {
-            running_ = false;
-        }
+        void stop();
 
     private:
         // Basic Node info
@@ -296,38 +261,3 @@ namespace lux::communication::intraprocess
 
 }
 
-inline void lux::communication::Executor::addNode(std::shared_ptr<lux::communication::intraprocess::Node> node)
-{
-    if (!node) return;
-    auto groups = node->getCallbackGroups();
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto& g : groups)
-    {
-        callback_groups_.insert(g);
-        g->setExecutor(shared_from_this());
-    }
-}
-
-inline void lux::communication::Executor::removeNode(std::shared_ptr<lux::communication::intraprocess::Node> node)
-{
-    if (!node) return;
-    auto groups = node->getCallbackGroups();
-    std::lock_guard<std::mutex> lock(mutex_);
-    for (auto& g : groups)
-    {
-        callback_groups_.erase(g);
-    }
-}
-
-inline void lux::communication::TimeOrderedExecutor::addNode(std::shared_ptr<lux::communication::intraprocess::Node> node)
-{
-    if (!node) return;
-    for (auto& g : node->getCallbackGroups())
-    {
-        if (g->getType() == CallbackGroupType::Reentrant)
-        {
-            throw std::runtime_error("[TimeOrderedExecutor] Reentrant group not supported in single-thread time-order mode!");
-        }
-    }
-    Executor::addNode(std::move(node));
-}

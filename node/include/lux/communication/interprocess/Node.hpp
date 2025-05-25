@@ -19,22 +19,13 @@ namespace lux::communication::interprocess {
 class Node {
 public:
     explicit Node(const std::string& name,
-                  std::shared_ptr<lux::communication::Domain> domain)
-        : name_(name), domain_(std::move(domain))
-    {
-        default_group_ = std::make_shared<lux::communication::CallbackGroup>(
-            lux::communication::CallbackGroupType::MutuallyExclusive);
-        callback_groups_.push_back(default_group_);
-    }
+                  std::shared_ptr<lux::communication::Domain> domain);
 
-    ~Node() { stop(); }
+    ~Node();
 
-    int getDomainId() const { return domain_ ? domain_->getDomainId() : 0; }
+    int getDomainId() const;
 
-    std::shared_ptr<lux::communication::CallbackGroup> getDefaultCallbackGroup() const
-    {
-        return default_group_;
-    }
+    std::shared_ptr<lux::communication::CallbackGroup> getDefaultCallbackGroup() const;
 
     template<typename T>
     std::shared_ptr<Publisher<T>> createPublisher(const std::string& topic)
@@ -73,11 +64,7 @@ public:
         return sub;
     }
 
-    void stop()
-    {
-        for (auto& fn : subscriber_stoppers_) { fn(); }
-        subscriber_stoppers_.clear();
-    }
+    void stop();
 
 private:
     std::string name_;
