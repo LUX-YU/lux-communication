@@ -1,13 +1,11 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <thread>
 #include <functional>
 #include <atomic>
 #include <optional>
-#include <cstring>
-
-#include <zmq.hpp>
 
 #include <lux/communication/visibility.h>
 #include "lux/communication/interprocess/Publisher.hpp"
@@ -18,6 +16,18 @@
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 
 namespace lux::communication::interprocess {
+
+    class SubscriberSocket
+    {
+    public:
+        virtual ~SubscriberSocket() = default;
+        virtual void connect(const std::string& endpoint) = 0;
+        virtual bool receive(void* data, size_t size) = 0;
+    };
+
+    std::unique_ptr<SubscriberSocket> createSubscriberSocket();
+
+    std::string defaultEndpoint(const std::string& topic);
 
     std::optional<std::string> waitDiscovery(const std::string& topic,
         std::chrono::milliseconds timeout = std::chrono::milliseconds{200});
@@ -36,7 +46,7 @@ namespace lux::communication::interprocess {
               topic_(topic),
               callback_(std::move(cb)),
               callback_group_(std::move(group)),
-              socket_(globalContext(), zmq::socket_type::sub)
+              socket_(createSubscriberSocket())
         {
             auto ep = waitDiscovery(topic_);
             if (!ep) {
@@ -44,10 +54,7 @@ namespace lux::communication::interprocess {
             } else {
                 endpoint_ = *ep;
             }
-            socket_.set(zmq::sockopt::subscribe, "");
-            socket_.set(zmq::sockopt::rcvtimeo, 100);
-            socket_.set(zmq::sockopt::linger, 0);
-            socket_.connect(endpoint_);
+            socket_->connect(endpoint_);
             running_ = true;
             thread_ = std::thread([this]{ recvLoop(); });
         }
@@ -93,15 +100,13 @@ namespace lux::communication::interprocess {
         {
             while (running_)
             {
-                zmq::message_t msg;
-                auto result = socket_.recv(msg, zmq::recv_flags::none);
-                if (!result)
+                T value{};
+                bool ok = socket_->receive(&value, sizeof(T));
+                if (!ok)
                 {
                     continue; // timeout
                 }
-                T value;
-                std::memcpy(&value, msg.data(), sizeof(T));
-                auto ptr = std::make_shared<T>(std::move(value));
+                auto ptr = std::make_shared<T>(value);
                 push(queue_, std::move(ptr));
                 if (callback_group_)
                 {
@@ -147,7 +152,7 @@ namespace lux::communication::interprocess {
     
         std::string topic_;
         std::string endpoint_;
-        zmq::socket_t socket_;
+        std::unique_ptr<SubscriberSocket> socket_;
         Callback callback_;
         std::shared_ptr<lux::communication::CallbackGroup> callback_group_;
         std::thread thread_;

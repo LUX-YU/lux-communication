@@ -119,8 +119,8 @@ namespace lux::communication
 
 	UdpMultiCast::~UdpMultiCast() = default;
 
-	UdpMultiCast::UdpMultiCast(UdpMultiCast&&) = default;
-	UdpMultiCast::UdpMultiCast& operator=(UdpMultiCast&&) = default;
+        UdpMultiCast::UdpMultiCast(UdpMultiCast&&) noexcept = default;
+        UdpMultiCast& UdpMultiCast::operator=(UdpMultiCast&&) noexcept = default;
 
 	bool UdpMultiCast::close()
 	{
