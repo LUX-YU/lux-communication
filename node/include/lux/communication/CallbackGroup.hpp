@@ -27,39 +27,19 @@ namespace lux::communication
     class CallbackGroup
     {
     public:
-        explicit CallbackGroup(CallbackGroupType type = CallbackGroupType::MutuallyExclusive)
-            : type_(type){}
+        explicit CallbackGroup(CallbackGroupType type = CallbackGroupType::MutuallyExclusive);
 
-        ~CallbackGroup() = default;
+        ~CallbackGroup();
 
-        CallbackGroupType getType() const { return type_; }
+        CallbackGroupType getType() const;
 
         // This can be called by Executor
         // When a Subscriber receives new data, it notifies the callback group
-        void addSubscriber(ISubscriberBase* sub)
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (!sub) return;
-            // Here we rely on sub->getId() returning a unique int ID.
-            subscribers_.insert(sub->getId(), sub);
-        }
+        void addSubscriber(ISubscriberBase* sub);
 
-        void removeSubscriber(ISubscriberBase* sub)
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (!sub) return;
-            subscribers_.erase(sub->getId());
-            auto it = std::find(ready_list_.begin(), ready_list_.end(), sub);
-            if (it != ready_list_.end())
-            {
-                ready_list_.erase(it);
-            }
-        }
+        void removeSubscriber(ISubscriberBase* sub);
 
-        bool hasReadySubscribers() const
-        {
-            return has_ready_.load(std::memory_order_acquire);
-        }
+        bool hasReadySubscribers() const;
 
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor
@@ -67,12 +47,12 @@ namespace lux::communication
 
         // For Executor to collect all ready subscribers (take them in one go)
         std::vector<ISubscriberBase*> collectReadySubscribers();
-        
+
         std::vector<ISubscriberBase*> collectAllSubscribers();
 
         // Set/get Executor (called by Executor::addNode())
-        void setExecutor(std::shared_ptr<Executor> exec) { executor_ = exec; }
-        std::shared_ptr<Executor> getExecutor() const { return executor_.lock(); }
+        void setExecutor(std::shared_ptr<Executor> exec);
+        std::shared_ptr<Executor> getExecutor() const;
 
     private:
         CallbackGroupType                           type_;

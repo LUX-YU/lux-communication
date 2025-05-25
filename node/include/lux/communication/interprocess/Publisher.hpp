@@ -10,31 +10,11 @@
 
 namespace lux::communication::interprocess {
 
-inline zmq::context_t& globalContext()
-{
-    static zmq::context_t ctx{1};
-    return ctx;
-}
+zmq::context_t& globalContext();
 
-inline std::string defaultEndpoint(const std::string& topic)
-{
-#ifdef _WIN32
-    size_t h = std::hash<std::string>{}(topic);
-    return "tcp://127.0.0.1:" + std::to_string(20000 + (h % 10000));
-#else
-    return "ipc:///tmp/" + topic + ".ipc";
-#endif
-}
+std::string defaultEndpoint(const std::string& topic);
 
-inline void sendDiscovery(const std::string& topic, const std::string& endpoint)
-{
-    try {
-        UdpMultiCast mc{"239.255.0.1", 30000};
-        std::string msg = topic + ':' + endpoint;
-        mc.send(msg);
-    } catch (...) {
-    }
-}
+void sendDiscovery(const std::string& topic, const std::string& endpoint);
 
 template<typename T>
 class Publisher
