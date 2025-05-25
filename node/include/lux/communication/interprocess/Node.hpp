@@ -14,65 +14,65 @@
 #include <lux/communication/Domain.hpp>
 #include <lux/communication/visibility.h>
 
-namespace lux::communication::interprocess {
-
-class Node {
-public:
-    explicit Node(const std::string& name,
-                  std::shared_ptr<lux::communication::Domain> domain);
-
-    ~Node();
-
-    int getDomainId() const;
-
-    std::shared_ptr<lux::communication::CallbackGroup> getDefaultCallbackGroup() const;
-
-    template<typename T>
-    std::shared_ptr<Publisher<T>> createPublisher(const std::string& topic)
+namespace lux::communication::interprocess 
+{
+    class LUX_COMMUNICATION_PUBLIC Node 
     {
-        return std::make_shared<Publisher<T>>(topic);
-    }
-
-    template<typename T, typename Callback>
-    std::shared_ptr<Subscriber<T>> createSubscriber(
-        const std::string& topic, Callback&& cb,
-        std::shared_ptr<lux::communication::CallbackGroup> group = nullptr)
-    {
-        if (!group)
+    public:
+        explicit Node(const std::string& name, std::shared_ptr<lux::communication::Domain> domain);
+    
+        ~Node();
+    
+        int getDomainId() const;
+    
+        std::shared_ptr<lux::communication::CallbackGroup> getDefaultCallbackGroup() const;
+    
+        template<typename T>
+        std::shared_ptr<Publisher<T>> createPublisher(const std::string& topic)
         {
-            group = default_group_;
+            return std::make_shared<Publisher<T>>(topic);
         }
-        auto sub = std::make_shared<Subscriber<T>>(topic, std::forward<Callback>(cb), group, next_sub_id_++);
-        if (group)
+    
+        template<typename T, typename Callback>
+        std::shared_ptr<Subscriber<T>> createSubscriber(
+            const std::string& topic, Callback&& cb,
+            std::shared_ptr<lux::communication::CallbackGroup> group = nullptr)
         {
-            group->addSubscriber(sub.get());
-            bool exists = false;
-            for (auto& g : callback_groups_)
+            if (!group)
             {
-                if (g == group)
+                group = default_group_;
+            }
+            auto sub = std::make_shared<Subscriber<T>>(topic, std::forward<Callback>(cb), group, next_sub_id_++);
+            if (group)
+            {
+                group->addSubscriber(sub.get());
+                bool exists = false;
+                for (auto& g : callback_groups_)
                 {
-                    exists = true;
-                    break;
+                    if (g == group)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists)
+                {
+                    callback_groups_.push_back(group);
                 }
             }
-            if (!exists)
-            {
-                callback_groups_.push_back(group);
-            }
+            subscriber_stoppers_.emplace_back([s=sub]{ s->stop(); });
+            return sub;
         }
-        subscriber_stoppers_.emplace_back([s=sub]{ s->stop(); });
-        return sub;
-    }
-
-    void stop();
-
-private:
-    std::string name_;
-    std::shared_ptr<lux::communication::CallbackGroup> default_group_;
-    std::vector<std::shared_ptr<lux::communication::CallbackGroup>> callback_groups_;
-    std::vector<std::function<void()>> subscriber_stoppers_;
-    int next_sub_id_{0};
-    std::shared_ptr<lux::communication::Domain> domain_;
-}; 
+    
+        void stop();
+    
+    private:
+        std::string name_;
+        std::shared_ptr<lux::communication::CallbackGroup> default_group_;
+        std::vector<std::shared_ptr<lux::communication::CallbackGroup>> callback_groups_;
+        std::vector<std::function<void()>> subscriber_stoppers_;
+        int next_sub_id_{0};
+        std::shared_ptr<lux::communication::Domain> domain_;
+    }; 
 
 } // namespace lux::communication::interprocess

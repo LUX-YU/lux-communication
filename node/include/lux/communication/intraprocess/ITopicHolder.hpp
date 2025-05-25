@@ -4,10 +4,11 @@
 #include <typeindex>
 #include <atomic>
 #include <lux/cxx/compile_time/type_info.hpp>
+#include <lux/communication/visibility.h>
 
 namespace lux::communication::intraprocess
 {
-    class ITopicHolder
+    class LUX_COMMUNICATION_PUBLIC ITopicHolder
     {
     public:
         virtual ~ITopicHolder() = default;

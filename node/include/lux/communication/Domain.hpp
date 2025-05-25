@@ -14,7 +14,7 @@
 
 namespace lux::communication
 {
-    class Domain
+    class LUX_COMMUNICATION_PUBLIC Domain
     {
     public:
         explicit Domain(int domainId);

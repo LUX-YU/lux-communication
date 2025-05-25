@@ -23,8 +23,8 @@ namespace lux::communication
 		UdpMultiCast(const UdpMultiCast&) = delete;
 		UdpMultiCast& operator=(const UdpMultiCast&) = delete;
 
-		UdpMultiCast(UdpMultiCast&&) = default;
-		UdpMultiCast& operator=(UdpMultiCast&&) = default;
+		UdpMultiCast(UdpMultiCast&&) noexcept;
+		UdpMultiCast& operator=(UdpMultiCast&&) noexcept;
 
 		~UdpMultiCast();
 

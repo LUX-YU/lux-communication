@@ -20,7 +20,7 @@ namespace lux::communication {
 
 namespace intraprocess { class Node; }
 
-class Executor : public std::enable_shared_from_this<Executor>
+class LUX_COMMUNICATION_PUBLIC Executor : public std::enable_shared_from_this<Executor>
 {
 public:
     Executor();
@@ -46,7 +46,7 @@ protected:
     std::unordered_set<std::shared_ptr<CallbackGroup>> callback_groups_;
 };
 
-class SingleThreadedExecutor : public Executor
+class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
 {
 public:
     SingleThreadedExecutor() = default;
@@ -55,7 +55,7 @@ public:
     void spinSome() override;
 };
 
-class MultiThreadedExecutor : public Executor
+class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
 {
 public:
     explicit MultiThreadedExecutor(size_t threadNum = 2);
@@ -68,7 +68,7 @@ private:
     lux::cxx::ThreadPool thread_pool_;
 };
 
-class TimeOrderedExecutor : public Executor
+class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
 {
 public:
     explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{0});

@@ -19,7 +19,7 @@ namespace lux::communication::intraprocess
     using lux::communication::Domain;
     using lux::communication::CallbackGroup;
     using lux::communication::CallbackGroupType;
-    class Node
+    class LUX_COMMUNICATION_PUBLIC Node
     {
     public:
         // Basic record structures remain the same

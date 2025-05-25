@@ -12,6 +12,7 @@
 #include <lux/communication/visibility.h>
 #include <lux/communication/SubscriberBase.hpp>
 
+
 namespace lux::communication
 {
     // Forward declarations
@@ -24,7 +25,7 @@ namespace lux::communication
         Reentrant           // Execution in this group can be concurrent
     };
 
-    class CallbackGroup
+    class LUX_COMMUNICATION_PUBLIC CallbackGroup
     {
     public:
         explicit CallbackGroup(CallbackGroupType type = CallbackGroupType::MutuallyExclusive);

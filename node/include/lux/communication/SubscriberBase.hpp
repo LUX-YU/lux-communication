@@ -14,7 +14,7 @@ namespace lux::communication
         bool operator<(const TimeExecEntry &rhs) const;
     };
 
-    class ISubscriberBase
+    class LUX_COMMUNICATION_PUBLIC ISubscriberBase
     {
         friend class TimeOrderedExecutor;
     public:
@@ -27,7 +27,7 @@ namespace lux::communication
         virtual bool setReadyIfNot() = 0;
         virtual void clearReady() = 0;
 
-                int getId() const;
+        int getId() const;
 
     private:
         virtual void drainAll(std::vector<TimeExecEntry>& out) = 0;
