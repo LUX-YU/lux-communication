@@ -9,7 +9,7 @@ namespace lux::communication::builtin_msgs::geometry_msgs
 		PointS		position;
 		QuaternionS	orientation;
 
-		Eigen::Matrix4d SE3()
+		Eigen::Matrix4d SE3() const
 		{
 			Eigen::Matrix4d mat = Eigen::Matrix4d::Identity();
 			mat.block<3, 1>(0, 3) = position;
