@@ -94,8 +94,9 @@ namespace lux::communication
 	{
 		std::lock_guard lck(mutex_callback_groups_);
 		auto it = std::find(callback_groups_.begin(), callback_groups_.end(), group);
-		if (it == callback_groups_.end())
+		if (it != callback_groups_.end())
 		{
+			callback_groups_.erase(it);
 			return; // Group not found
 		}
 	}
