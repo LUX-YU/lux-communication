@@ -8,6 +8,7 @@
 #include <optional>
 
 #include <lux/communication/visibility.h>
+#include "lux/communication/ITopicHolder.hpp"
 #include "lux/communication/interprocess/Publisher.hpp"
 #include "lux/communication/UdpMultiCast.hpp"
 #include <lux/communication/Queue.hpp>
@@ -15,7 +16,9 @@
 #include <lux/communication/CallbackGroup.hpp>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 
-namespace lux::communication::interprocess {
+namespace lux::communication::interprocess 
+{
+    class Node;
 
     class SubscriberSocket
     {
@@ -33,24 +36,18 @@ namespace lux::communication::interprocess {
         std::chrono::milliseconds timeout = std::chrono::milliseconds{200});
     
     template<typename T>
-    class Subscriber : public lux::communication::ISubscriberBase
+	class Subscriber : public lux::communication::TSubscriberBase<T>
     {
     public:
         using Callback = std::function<void(const T&)>;
     
-        Subscriber(const std::string& topic,
-                   Callback cb,
-                   std::shared_ptr<lux::communication::CallbackGroup> group,
-                   int id)
-            : ISubscriberBase(id),
-              topic_(topic),
-              callback_(std::move(cb)),
-              callback_group_(std::move(group)),
+        Subscriber(std::shared_ptr<Node> node, TopicHolderSptr topic, Callback cb, std::shared_ptr<CallbackGroup> group)
+            : TSubscriberBase(std::move(node), std::move(topic), std::move(cb), std::move(group)),
               socket_(createSubscriberSocket())
         {
-            auto ep = waitDiscovery(topic_);
+            auto ep = waitDiscovery(topic->name());
             if (!ep) {
-                endpoint_ = defaultEndpoint(topic_);
+                endpoint_ = defaultEndpoint(topic->name());
             } else {
                 endpoint_ = *ep;
             }
@@ -87,7 +84,8 @@ namespace lux::communication::interprocess {
             bool expected = false;
             return ready_flag_.compare_exchange_strong(
                 expected, true,
-                std::memory_order_acq_rel, std::memory_order_acquire);
+                std::memory_order_acq_rel, std::memory_order_acquire
+            );
         }
     
         void clearReady() override
@@ -108,10 +106,7 @@ namespace lux::communication::interprocess {
                 }
                 auto ptr = std::make_shared<T>(value);
                 push(queue_, std::move(ptr));
-                if (callback_group_)
-                {
-                    callback_group_->notify(this);
-                }
+                SubscriberBase::callbackGroup().notify(this);
             }
         }
     
@@ -124,10 +119,6 @@ namespace lux::communication::interprocess {
                     thread_.join();
             }
             close(queue_);
-            if (callback_group_)
-            {
-                callback_group_->removeSubscriber(this);
-            }
         }
     
         void drainAll(std::vector<lux::communication::TimeExecEntry>& out) override
@@ -150,16 +141,13 @@ namespace lux::communication::interprocess {
             }
         }
     
-        std::string topic_;
-        std::string endpoint_;
-        std::unique_ptr<SubscriberSocket> socket_;
-        Callback callback_;
-        std::shared_ptr<lux::communication::CallbackGroup> callback_group_;
-        std::thread thread_;
-        std::atomic<bool> running_{false};
-    
-        lux::communication::queue_t<T> queue_;
-        std::atomic<bool> ready_flag_{false};
+        std::string                         endpoint_;
+        std::unique_ptr<SubscriberSocket>   socket_;
+        Callback                            callback_;
+        std::thread                         thread_;
+        std::atomic<bool>                   running_{false};
+        lux::communication::queue_t<T>      queue_;
+        std::atomic<bool>                   ready_flag_{false};
     };
 
 } // namespace lux::communication::interprocess

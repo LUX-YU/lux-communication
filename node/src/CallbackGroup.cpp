@@ -7,22 +7,22 @@ namespace lux::communication {
     
     CallbackGroup::~CallbackGroup() = default;
     
-    CallbackGroupType CallbackGroup::getType() const {
+    CallbackGroupType CallbackGroup::type() const {
         return type_;
     }
     
-    void CallbackGroup::addSubscriber(ISubscriberBase* sub)
+    void CallbackGroup::addSubscriber(SubscriberBase* sub)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!sub) return;
-        subscribers_.insert(sub->getId(), sub);
+        subscribers_.insert(sub->id(), sub);
     }
     
-    void CallbackGroup::removeSubscriber(ISubscriberBase* sub)
+    void CallbackGroup::removeSubscriber(SubscriberBase* sub)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!sub) return;
-        subscribers_.erase(sub->getId());
+        subscribers_.erase(sub->id());
         auto it = std::find(ready_list_.begin(), ready_list_.end(), sub);
         if (it != ready_list_.end())
         {
@@ -35,7 +35,7 @@ namespace lux::communication {
         return has_ready_.load(std::memory_order_acquire);
     }
     
-    void CallbackGroup::notify(ISubscriberBase* sub)
+    void CallbackGroup::notify(SubscriberBase* sub)
     {
         std::shared_ptr<Executor> ex;
         {
@@ -48,19 +48,19 @@ namespace lux::communication {
         if (ex) ex->wakeup();
     }
     
-    std::vector<ISubscriberBase*> CallbackGroup::collectReadySubscribers()
+    std::vector<SubscriberBase*> CallbackGroup::collectReadySubscribers()
     {
         std::lock_guard lk(mutex_);
         has_ready_.store(false, std::memory_order_release);
-        std::vector<ISubscriberBase*> out;
+        std::vector<SubscriberBase*> out;
         out.swap(ready_list_);
         return out;
     }
     
-    std::vector<ISubscriberBase*> CallbackGroup::collectAllSubscribers()
+    std::vector<SubscriberBase*> CallbackGroup::collectAllSubscribers()
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<ISubscriberBase*> result;
+        std::vector<SubscriberBase*> result;
         result.reserve(subscribers_.size());
         for (auto& sb : subscribers_.values())
         {

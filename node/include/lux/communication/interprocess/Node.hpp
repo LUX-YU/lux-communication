@@ -7,6 +7,7 @@
 #include <functional>
 #include <atomic>
 
+#include <lux/communication/NodeBase.hpp>
 #include <lux/communication/CallbackGroup.hpp>
 #include <lux/communication/interprocess/Publisher.hpp>
 #include <lux/communication/interprocess/Subscriber.hpp>
@@ -17,9 +18,10 @@
 namespace lux::communication::interprocess 
 {
     class LUX_COMMUNICATION_PUBLIC Node 
+		: public lux::communication::NodeBase, public std::enable_shared_from_this<Node>
     {
     public:
-        explicit Node(const std::string& name, std::shared_ptr<lux::communication::Domain> domain);
+        explicit Node(const std::string& name, std::shared_ptr<lux::communication::Domain> domain = default_domain());
     
         ~Node();
     
@@ -40,26 +42,20 @@ namespace lux::communication::interprocess
         {
             if (!group)
             {
-                group = default_group_;
+                group = default_callback_group();
             }
-            auto sub = std::make_shared<Subscriber<T>>(topic, std::forward<Callback>(cb), group, next_sub_id_++);
-            if (group)
-            {
-                group->addSubscriber(sub.get());
-                bool exists = false;
-                for (auto& g : callback_groups_)
-                {
-                    if (g == group)
-                    {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists)
-                {
-                    callback_groups_.push_back(group);
-                }
-            }
+
+			auto topic_ptr = domain_->createOrGetTopic<ITopicHolder, T>(topic);
+
+            auto sub = std::make_shared<Subscriber<T>>(
+                shared_from_this(),
+                topic_ptr,
+                std::forward<Callback>(cb), 
+                group
+            );
+
+            callback_groups_.push_back(group);
+           
             subscriber_stoppers_.emplace_back([s=sub]{ s->stop(); });
             return sub;
         }
@@ -68,7 +64,6 @@ namespace lux::communication::interprocess
     
     private:
         std::string name_;
-        std::shared_ptr<lux::communication::CallbackGroup> default_group_;
         std::vector<std::shared_ptr<lux::communication::CallbackGroup>> callback_groups_;
         std::vector<std::function<void()>> subscriber_stoppers_;
         int next_sub_id_{0};

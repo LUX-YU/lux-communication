@@ -12,12 +12,11 @@
 #include <lux/communication/visibility.h>
 #include <lux/communication/SubscriberBase.hpp>
 
-
 namespace lux::communication
 {
     // Forward declarations
     class Executor;
-    class ISubscriberBase;
+    class SubscriberBase;
 
     enum class CallbackGroupType
     {
@@ -32,41 +31,43 @@ namespace lux::communication
 
         ~CallbackGroup();
 
-        CallbackGroupType getType() const;
+        CallbackGroupType type() const;
 
         // This can be called by Executor
         // When a Subscriber receives new data, it notifies the callback group
-        void addSubscriber(ISubscriberBase* sub);
+        void addSubscriber(SubscriberBase* sub);
 
-        void removeSubscriber(ISubscriberBase* sub);
+        void removeSubscriber(SubscriberBase* sub);
 
         bool hasReadySubscribers() const;
 
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor
-        void notify(ISubscriberBase* sub);
+        void notify(SubscriberBase* sub);
 
         // For Executor to collect all ready subscribers (take them in one go)
-        std::vector<ISubscriberBase*> collectReadySubscribers();
+        std::vector<SubscriberBase*> collectReadySubscribers();
 
-        std::vector<ISubscriberBase*> collectAllSubscribers();
+        std::vector<SubscriberBase*> collectAllSubscribers();
 
         // Set/get Executor (called by Executor::addNode())
         void setExecutor(std::shared_ptr<Executor> exec);
         std::shared_ptr<Executor> getExecutor() const;
 
     private:
+        size_t                                      id_;
+
         CallbackGroupType                           type_;
         mutable std::mutex                          mutex_;
 
-        // Use SparseSet<int, ISubscriberBase*> for fast add/remove.
+        // Use SparseSet<int, SubscriberBase*> for fast add/remove.
         // The 'int' key must come from something like sub->getId().
-        lux::cxx::SparseSet<int, ISubscriberBase*>  subscribers_;
+        lux::cxx::SparseSet<int, SubscriberBase*>   subscribers_;
 
         // We still keep a simple vector as a "ready queue."
         // If you also wanted O(1) removal from the ready list, you could
         // store them in another SparseSet. Usually, we just pop them in FIFO order.
-        std::vector<ISubscriberBase*>               ready_list_;
+        std::vector<SubscriberBase*>                ready_list_;
 
         // A weak reference to whichever Executor is responsible for this group
         std::weak_ptr<Executor>                     executor_;
@@ -74,4 +75,9 @@ namespace lux::communication
         std::atomic<bool>                           has_ready_{ false };
     };
 
+    inline std::shared_ptr<CallbackGroup> default_callback_group()
+    {
+        static auto instance = std::make_shared<CallbackGroup>();
+        return instance;
+    }
 } // namespace lux::communication::intraprocess

@@ -10,65 +10,38 @@
 
 namespace lux::communication::intraprocess
 {
-    using lux::communication::CallbackGroup;
-    using lux::communication::CallbackGroupType;
-    using lux::communication::ISubscriberBase;
-    template <typename T>
-    using SubscriberCallback = std::function<void(const std::shared_ptr<T>)>;
-
-    template <typename T>
-    struct SubscriberData
-    {
-        bool                  inUse{false};
-        int                   nextFree{-1};
-        SubscriberCallback<T> callback; // Callback
-    };
-
     class Node; // Forward declaration
     template <typename T>
-    class Subscriber : public ISubscriberBase
+	class Subscriber : public lux::communication::TSubscriberBase<T>
     {
     public:
+		using Parent   = lux::communication::TSubscriberBase<T>;
         using Callback = std::function<void(const T &)>;
 
         friend class Node; // or friend class Node (depending on design)
 
-        Subscriber(class Node *node, int sub_id, Topic<T> *topic, Callback cb, std::shared_ptr<CallbackGroup> callback_group)
-            : ISubscriberBase(sub_id), node_(node), topic_(topic), callback_(std::move(cb)), callback_group_(std::move(callback_group))
+        Subscriber(std::shared_ptr<Node> node, std::shared_ptr<Topic<T>> topic, Callback callback, CallbackGroupSptr group)
+            : TSubscriberBase<T>(std::move(node), std::move(topic), std::move(callback), std::move(group))
         {
-            topic_->incRef();
-            topic_->addSubscriber(this);
+            Subscriber::topic().addSubscriber(this);
         }
 
-        ~Subscriber();
+        ~Subscriber() override {
+            cleanup();
+        }
 
         Subscriber(const Subscriber &) = delete;
         Subscriber &operator=(const Subscriber &) = delete;
 
-        Subscriber(Subscriber &&rhs) noexcept
-        {
-            moveFrom(std::move(rhs));
-        }
-
-        Subscriber &operator=(Subscriber &&rhs) noexcept
-        {
-            if (this != &rhs)
-            {
-                cleanup();
-                moveFrom(std::move(rhs));
-            }
-            return *this;
-        }
+        Subscriber(Subscriber&& rhs) = delete;
+		Subscriber& operator=(Subscriber&& rhs) = delete;
 
         // The interface called by Topic when a new message arrives
         void enqueue(message_t<T> msg)
         {
             push(queue_, std::move(msg));
 
-            if (callback_group_)
-            {
-                callback_group_->notify(this);
-            }
+            SubscriberBase::callbackGroup().notify(this);
         }
 
         // Called by Node spinOnce()
@@ -77,16 +50,11 @@ namespace lux::communication::intraprocess
             message_t<T> msg;
             while (try_pop(queue_, msg))
             {
-                if (callback_)
-                {
-                    callback_(*msg);
-                }
+                Parent::template invokeCallback(*msg);
             }
 
             clearReady();
         }
-
-        int getId() const { return sub_id_; }
 
         bool setReadyIfNot() override
         {
@@ -105,17 +73,16 @@ namespace lux::communication::intraprocess
         }
 
     private:
-        void cleanup();
+		Topic<T>& topic()
+		{
+			return static_cast<Topic<T>&>(SubscriberBase::topic());
+		}
 
-        void moveFrom(Subscriber &&rhs)
-        {
-            node_           = rhs.node_;
-            topic_          = rhs.topic_;
-            callback_       = std::move(rhs.callback_);
-            callback_group_ = std::move(rhs.callback_group_);
-
-            rhs.node_       = nullptr;
-            rhs.topic_      = nullptr;
+        void cleanup() {
+			// Close the queue and join the thread if needed
+			close(queue_);
+			ready_flag_.store(false, std::memory_order_release);
+			Subscriber::topic().removeSubscriber(this);
         }
 
         void drainAll(std::vector<TimeExecEntry> &out) override
@@ -129,10 +96,8 @@ namespace lux::communication::intraprocess
                     auto ts_ns = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*msg);
                     // capture 'msg' by move in the invoker
                     // Capture user callback set when subscribing
-                    auto invoker = [cb=callback_, m=std::move(msg)]() mutable {
-                        if(cb) {
-                            cb(*m);
-                        }
+                    auto invoker = [this, m=std::move(msg)]() mutable {
+						this->invokeCallback(*m);
                     };
                     out.push_back(TimeExecEntry{ ts_ns, std::move(invoker) });
                 }
@@ -143,14 +108,7 @@ namespace lux::communication::intraprocess
         }
 
     private:
-        class Node*                     node_{nullptr};
-        int                             sub_id_{-1};
-        Topic<T>*                       topic_{nullptr};
-        Callback                        callback_;
         std::atomic<bool>               ready_flag_{false};
-        
-        std::shared_ptr<CallbackGroup>  callback_group_;
-
         queue_t<T>                      queue_;
     };
 }

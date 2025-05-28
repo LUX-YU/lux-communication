@@ -18,16 +18,14 @@
 
 namespace lux::communication {
 
-namespace intraprocess { class Node; }
-
 class LUX_COMMUNICATION_PUBLIC Executor : public std::enable_shared_from_this<Executor>
 {
 public:
     Executor();
     virtual ~Executor();
 
-    virtual void addNode(std::shared_ptr<intraprocess::Node> node);
-    virtual void removeNode(std::shared_ptr<intraprocess::Node> node);
+    virtual void addNode(std::shared_ptr<NodeBase> node);
+    virtual void removeNode(std::shared_ptr<NodeBase> node);
 
     virtual void spinSome() = 0;
     virtual void spin();
@@ -39,11 +37,11 @@ protected:
     void notifyCondition();
     virtual bool checkRunnable();
 
-    std::atomic<bool> running_;
-    std::mutex cv_mutex_;
-    std::condition_variable cv_;
-    std::mutex mutex_;
-    std::unordered_set<std::shared_ptr<CallbackGroup>> callback_groups_;
+    std::atomic<bool>                   running_;
+    std::mutex                          cv_mutex_;
+    std::condition_variable             cv_;
+    std::mutex                          mutex_;
+    std::unordered_set<CallbackGroup*>  callback_groups_;
 };
 
 class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
@@ -74,7 +72,7 @@ public:
     explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{0});
     ~TimeOrderedExecutor() override;
 
-    void addNode(std::shared_ptr<intraprocess::Node> node) override;
+    void addNode(std::shared_ptr<NodeBase> node) override;
 
     void spinSome() override;
     void spin() override;
@@ -92,8 +90,8 @@ private:
     void doWait();
 
 private:
-    std::priority_queue<TimeExecEntry> buffer_;
-    std::chrono::nanoseconds time_offset_;
+    std::priority_queue<TimeExecEntry>  buffer_;
+    std::chrono::nanoseconds            time_offset_;
 };
 
 } // namespace lux::communication

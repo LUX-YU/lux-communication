@@ -10,6 +10,8 @@ set(LUX_COMMUNICATION_NODE_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/src/Domain.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/CallbackGroup.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/Executor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/NodeBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/PublisherBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/SubscriberBase.cpp
 )
 

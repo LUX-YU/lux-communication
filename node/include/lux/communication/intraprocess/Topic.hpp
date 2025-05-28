@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>    // for std::unique_ptr
-#include "ITopicHolder.hpp"
+#include <lux/communication/ITopicHolder.hpp>
 
 namespace lux::communication { class Domain; }
 
@@ -71,10 +71,9 @@ namespace lux::communication::intraprocess
     class Topic : public ITopicHolder
     {
     public:
-        static constexpr auto type_info = lux::cxx::make_basic_type_info<T>();
+        static constexpr auto static_type_info = lux::cxx::make_basic_type_info<T>();
 
-        Topic(const std::string &name, Domain *owner)
-            : name_(name), domain_(owner)
+        Topic()
         {
             // refCount starts at 0, external incRef() is required
             // Initialize an empty list
@@ -88,18 +87,6 @@ namespace lux::communication::intraprocess
             // Release current subs_ pointer on destruction
             auto ptr = subs_.load(std::memory_order_acquire);
             detail::decRef(ptr);
-        }
-
-        // ITopicHolder interface: topic name
-        const std::string &getTopicName() const override
-        {
-            return name_;
-        }
-
-        // ITopicHolder interface: topic type
-        lux::cxx::basic_type_info getType() const override
-        {
-            return type_info;
         }
 
         /**
@@ -184,20 +171,9 @@ namespace lux::communication::intraprocess
             }
 
             detail::decRef(listPtr);  // Done iterating
-            
         }
 
-    protected:
-        /**
-         * @brief When reference count reaches zero, let Domain remove it
-         *        Domain removes this Topic's resources in removeTopic(this)
-         */
-        void onNoRef() override;
-
     private:
-        std::string                name_;
-        Domain*                    domain_;
-
         // Atomic pointer to an immutable "SubscriberList"
         std::atomic<detail::SubscriberList<T>*> subs_;
     };

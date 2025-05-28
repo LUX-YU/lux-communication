@@ -8,9 +8,9 @@
 #include <cassert>
 #include <functional>
 #include <lux/cxx/compile_time/type_info.hpp>
+#include <lux/cxx/container/SparseSet.hpp>
 #include <lux/communication/visibility.h>
-#include <lux/communication/intraprocess/ITopicHolder.hpp>
-#include <lux/communication/intraprocess/Topic.hpp>
+#include <lux/communication/ITopicHolder.hpp>
 
 namespace lux::communication
 {
@@ -24,45 +24,44 @@ namespace lux::communication
         /**
          * @brief Create or get a Topic of type T with the specified name
          */
-        template <typename T>
-        intraprocess::Topic<T> *createOrGetTopic(const std::string &topicName)
+		template <typename TopicType, typename T, typename... Args>
+        requires std::is_base_of_v<ITopicHolder, TopicType>
+        std::shared_ptr<TopicType> createOrGetTopic(const std::string &topicName, Args&&... args)
         {
             std::lock_guard<std::mutex> lock(mutex_);
 
-            auto key = std::make_pair(topicName, intraprocess::Topic<T>::type_info);
+			constexpr auto type_info = lux::cxx::make_basic_type_info<T>();
+            auto key = std::make_pair(topicName, type_info);
             auto it = topic_index_map_.find(key);
             if (it != topic_index_map_.end())
             {
                 // Already exists
                 size_t idx = it->second;
-                assert(topics_[idx]->getType() == intraprocess::Topic<T>::type_info && "Topic type mismatch!");
-                auto ptr = static_cast<intraprocess::Topic<T> *>(topics_[idx].get());
-                ptr->incRef();
+                auto ptr = std::static_pointer_cast<TopicType>(topics_[idx].lock());
                 return ptr;
             }
-            else
-            {
-                // Create a new Topic
-                auto new_topic = std::make_unique<intraprocess::Topic<T>>(topicName, this);
-                new_topic->incRef(); // Initially has 1 reference (managed by Domain)
-                topics_.push_back(std::move(new_topic));
-                size_t newIdx = topics_.size() - 1;
-                topic_index_map_[key] = newIdx;
 
-                return static_cast<intraprocess::Topic<T> *>(topics_[newIdx].get());
-            }
+            // Create a new Topic
+            auto new_topic = std::make_shared<TopicType>(std::forward<Args>(args)...);
+			new_topic->setDomain(this); // Set the Domain for the Topic
+			new_topic->setTopicName(topicName);
+			new_topic->setTypeInfo(type_info);
+            auto topic_idx = topics_.insert(new_topic);
+            new_topic->setIndex(topic_idx);
+            topic_index_map_[key] = topic_idx;
+            return new_topic;
         }
 
         /**
          * @brief When the reference count of Topic<T> reaches zero, notify the Domain to remove it
          */
-        void removeTopic(intraprocess::ITopicHolder *topicPtr);
+        void removeTopic(ITopicHolder* topicPtr);
 
     private:
         int domain_id_;
 
-        // Store all Topics, use unique_ptr to manage their lifetimes
-        std::vector<std::unique_ptr<intraprocess::ITopicHolder>> topics_;
+        // Store all Topics
+        lux::cxx::AutoSparseSet<std::weak_ptr<ITopicHolder>> topics_;
 
         using topic_key_t = std::pair<std::string, lux::cxx::basic_type_info>;
 
@@ -89,17 +88,12 @@ namespace lux::communication
         // Use custom hash function and comparator
         std::unordered_map<topic_key_t, size_t, PairHash, PairEqual> topic_index_map_;
 
-        std::mutex mutex_; // Protects the above containers
+        mutable std::mutex mutex_; // Protects the above containers
     };
 
-    // Because Topic<T>::onNoRef() needs to call domain->removeTopic(this),
-    template <typename T>
-    void intraprocess::Topic<T>::onNoRef()
+    inline std::shared_ptr<Domain> default_domain()
     {
-        // Call domain->removeTopic(this)
-        if (domain_)
-        {
-            domain_->removeTopic(this);
-        }
+		static auto default_domain_instance = std::make_shared<Domain>(0);
+		return default_domain_instance;
     }
 }
