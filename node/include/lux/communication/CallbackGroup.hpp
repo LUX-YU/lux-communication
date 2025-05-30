@@ -17,6 +17,8 @@ namespace lux::communication
     // Forward declarations
     class Executor;
     class SubscriberBase;
+	using SubscriberWptr = std::weak_ptr<SubscriberBase>;
+	using SubscriberSptr = std::shared_ptr<SubscriberBase>;
 
     enum class CallbackGroupType
     {
@@ -32,24 +34,22 @@ namespace lux::communication
         ~CallbackGroup();
 
         CallbackGroupType type() const;
-
+        
         // This can be called by Executor
         // When a Subscriber receives new data, it notifies the callback group
-        void addSubscriber(SubscriberBase* sub);
+        void addSubscriber(SubscriberSptr sub);
 
-        void removeSubscriber(SubscriberBase* sub);
+        void removeSubscriber(size_t sub_id);
 
         bool hasReadySubscribers() const;
 
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor
-        void notify(SubscriberBase* sub);
+        void notify(const SubscriberSptr& sub);
 
         // For Executor to collect all ready subscribers (take them in one go)
-        std::vector<SubscriberBase*> collectReadySubscribers();
-
-        std::vector<SubscriberBase*> collectAllSubscribers();
-
+        std::vector<SubscriberSptr> collectReadySubscribers();
+            
         // Set/get Executor (called by Executor::addNode())
         void setExecutor(std::shared_ptr<Executor> exec);
         std::shared_ptr<Executor> getExecutor() const;
@@ -62,12 +62,12 @@ namespace lux::communication
 
         // Use SparseSet<int, SubscriberBase*> for fast add/remove.
         // The 'int' key must come from something like sub->getId().
-        lux::cxx::SparseSet<int, SubscriberBase*>   subscribers_;
+		lux::cxx::AutoSparseSet<SubscriberWptr>     subscribers_;
 
         // We still keep a simple vector as a "ready queue."
         // If you also wanted O(1) removal from the ready list, you could
         // store them in another SparseSet. Usually, we just pop them in FIFO order.
-        std::vector<SubscriberBase*>                ready_list_;
+        std::deque<SubscriberSptr>                  ready_list_;
 
         // A weak reference to whichever Executor is responsible for this group
         std::weak_ptr<Executor>                     executor_;

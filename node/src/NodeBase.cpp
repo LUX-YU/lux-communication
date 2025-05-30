@@ -16,13 +16,11 @@ namespace lux::communication
 
 	void NodeBase::addPublisher(PublisherBase* pub)
 	{
-		std::lock_guard lck(mutex_pub_);
-		pub->setId(publishers_.insert(pub));
-		if (publishers_.contains(pub->id()))
-		{
+		std::lock_guard lk(mutex_pub_);
+		if (publishers_.contains(pub->id()))        // SparseSet 新增 contains(ptr) 接口
 			return;
-		}
-		publishers_.insert(std::move(pub));
+		auto id = publishers_.insert(pub);
+		pub->setId(id);
 	}
 
 	void NodeBase::addSubscriber(SubscriberBase* sub)
@@ -76,7 +74,7 @@ namespace lux::communication
 		subscribers_.erase(sub_id);
 	}
 
-	void NodeBase::addCallbackGroup(CallbackGroup* group)
+	void NodeBase::addCallbackGroup(std::shared_ptr<CallbackGroup> group)
 	{
 		std::lock_guard lck(mutex_callback_groups_);
 		for (const auto& g : callback_groups_)
@@ -90,7 +88,7 @@ namespace lux::communication
 		callback_groups_.push_back(std::move(group));
 	}
 
-	void NodeBase::removeCallbackGroup(CallbackGroup* group)
+	void NodeBase::removeCallbackGroup(std::shared_ptr<CallbackGroup> group)
 	{
 		std::lock_guard lck(mutex_callback_groups_);
 		auto it = std::find(callback_groups_.begin(), callback_groups_.end(), group);

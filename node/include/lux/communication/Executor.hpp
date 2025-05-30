@@ -12,86 +12,89 @@
 
 #include <lux/communication/visibility.h>
 #include <lux/communication/CallbackGroup.hpp>
-#include <lux/communication/SubscriberBase.hpp>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 #include <lux/cxx/concurrent/ThreadPool.hpp>
 
 namespace lux::communication {
 
-class LUX_COMMUNICATION_PUBLIC Executor : public std::enable_shared_from_this<Executor>
-{
-public:
-    Executor();
-    virtual ~Executor();
+	class CallbackGroup;
+	using CallbackGroupSptr = std::shared_ptr<CallbackGroup>;
+	using CallbackGroupWptr = std::weak_ptr<CallbackGroup>;
 
-    virtual void addNode(std::shared_ptr<NodeBase> node);
-    virtual void removeNode(std::shared_ptr<NodeBase> node);
+	class LUX_COMMUNICATION_PUBLIC Executor : public std::enable_shared_from_this<Executor>
+	{
+	public:
+		Executor();
+		virtual ~Executor();
 
-    virtual void spinSome() = 0;
-    virtual void spin();
-    virtual void stop();
-    virtual void wakeup();
+		virtual void addNode(std::shared_ptr<NodeBase> node);
+		virtual void removeNode(std::shared_ptr<NodeBase> node);
 
-protected:
-    void waitCondition();
-    void notifyCondition();
-    virtual bool checkRunnable();
+		virtual void spinSome() = 0;
+		virtual void spin();
+		virtual void stop();
+		virtual void wakeup();
 
-    std::atomic<bool>                   running_;
-    std::mutex                          cv_mutex_;
-    std::condition_variable             cv_;
-    std::mutex                          mutex_;
-    std::unordered_set<CallbackGroup*>  callback_groups_;
-};
+	protected:
+		void waitCondition();
+		void notifyCondition();
+		virtual bool checkRunnable();
 
-class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
-{
-public:
-    SingleThreadedExecutor() = default;
-    ~SingleThreadedExecutor() override;
+		std::atomic<bool>                   running_;
+		std::mutex                          cv_mutex_;
+		std::condition_variable             cv_;
+		std::mutex                          mutex_;
+		std::unordered_set<CallbackGroup*>  callback_groups_;
+	};
 
-    void spinSome() override;
-};
+	class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
+	{
+	public:
+		SingleThreadedExecutor() = default;
+		~SingleThreadedExecutor() override;
 
-class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
-{
-public:
-    explicit MultiThreadedExecutor(size_t threadNum = 2);
-    ~MultiThreadedExecutor() override;
+		void spinSome() override;
+	};
 
-    void spinSome() override;
-    void stop() override;
+	class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
+	{
+	public:
+		explicit MultiThreadedExecutor(size_t threadNum = 2);
+		~MultiThreadedExecutor() override;
 
-private:
-    lux::cxx::ThreadPool thread_pool_;
-};
+		void spinSome() override;
+		void stop() override;
 
-class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
-{
-public:
-    explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{0});
-    ~TimeOrderedExecutor() override;
+	private:
+		lux::cxx::ThreadPool thread_pool_;
+	};
 
-    void addNode(std::shared_ptr<NodeBase> node) override;
+	class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
+	{
+	public:
+		explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{ 0 });
+		~TimeOrderedExecutor() override;
 
-    void spinSome() override;
-    void spin() override;
-    void stop() override;
+		void addNode(std::shared_ptr<NodeBase> node) override;
 
-    void setTimeOffset(std::chrono::nanoseconds offset);
-    std::chrono::nanoseconds getTimeOffset() const;
+		void spinSome() override;
+		void spin() override;
+		void stop() override;
 
-protected:
-    bool checkRunnable() override;
+		void setTimeOffset(std::chrono::nanoseconds offset);
+		std::chrono::nanoseconds getTimeOffset() const;
 
-private:
-    void fetchReadyEntries();
-    void processReadyEntries();
-    void doWait();
+	protected:
+		bool checkRunnable() override;
 
-private:
-    std::priority_queue<TimeExecEntry>  buffer_;
-    std::chrono::nanoseconds            time_offset_;
-};
+	private:
+		void fetchReadyEntries();
+		void processReadyEntries();
+		void doWait();
+
+	private:
+		std::priority_queue<TimeExecEntry>  buffer_;
+		std::chrono::nanoseconds            time_offset_;
+	};
 
 } // namespace lux::communication

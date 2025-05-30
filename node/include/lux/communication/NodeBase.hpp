@@ -16,7 +16,7 @@ namespace lux::communication
 		friend class PublisherBase;
 		friend class SubscriberBase;
 	public:
-		using CallbackGroupList = std::vector<CallbackGroup*>;
+		using CallbackGroupList = std::vector<std::shared_ptr<CallbackGroup>>;
 
 		NodeBase(const std::string&, std::shared_ptr<Domain> domain);
 
@@ -29,8 +29,8 @@ namespace lux::communication
 	protected:
 		Domain& domain();
 
-		void addCallbackGroup(CallbackGroup* group);
-		void removeCallbackGroup(CallbackGroup* group);
+		void addCallbackGroup(std::shared_ptr<CallbackGroup> group);
+		void removeCallbackGroup(std::shared_ptr<CallbackGroup> group);
 
 		void addPublisher(PublisherBase* pub);
 		void addSubscriber(SubscriberBase* sub);

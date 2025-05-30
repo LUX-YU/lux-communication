@@ -11,14 +11,17 @@ namespace lux::communication {
         return type_;
     }
     
-    void CallbackGroup::addSubscriber(SubscriberBase* sub)
+    void CallbackGroup::addSubscriber(SubscriberSptr sub)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!sub) return;
-        subscribers_.insert(sub->id(), sub);
+		if (subscribers_.contains(sub->id())) {
+			return; // Subscriber already exists
+		}
+        subscribers_.insert(sub);
     }
     
-    void CallbackGroup::removeSubscriber(SubscriberBase* sub)
+    void CallbackGroup::removeSubscriber(size_t sub_id)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!sub) return;
@@ -35,38 +38,30 @@ namespace lux::communication {
         return has_ready_.load(std::memory_order_acquire);
     }
     
-    void CallbackGroup::notify(SubscriberBase* sub)
+    void CallbackGroup::notify(const SubscriberSptr& sub)
     {
         std::shared_ptr<Executor> ex;
         {
             std::lock_guard lk(mutex_);
-            if (sub && sub->setReadyIfNot())
+            if (sub && sub->setReadyIfNot()) {
                 ready_list_.push_back(sub);
-            has_ready_.store(true, std::memory_order_release);
-            ex = executor_.lock();
+                has_ready_.store(true, std::memory_order_release);
+            }
         }
-        if (ex) ex->wakeup();
+        if (ex)  ex->wakeup();
     }
     
-    std::vector<SubscriberBase*> CallbackGroup::collectReadySubscribers()
+    std::vector<SubscriberSptr> CallbackGroup::collectReadySubscribers()
     {
         std::lock_guard lk(mutex_);
         has_ready_.store(false, std::memory_order_release);
-        std::vector<SubscriberBase*> out;
-        out.swap(ready_list_);
+        std::vector<SubscriberSptr> out;
+        out.assign(
+            std::make_move_iterator(ready_list_.begin()),
+            std::make_move_iterator(ready_list_.end())
+        );
+        ready_list_.clear();
         return out;
-    }
-    
-    std::vector<SubscriberBase*> CallbackGroup::collectAllSubscribers()
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<SubscriberBase*> result;
-        result.reserve(subscribers_.size());
-        for (auto& sb : subscribers_.values())
-        {
-            result.push_back(sb);
-        }
-        return result;
     }
     
     void CallbackGroup::setExecutor(std::shared_ptr<Executor> exec)
