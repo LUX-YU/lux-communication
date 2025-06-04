@@ -42,7 +42,7 @@ namespace lux::communication {
         {
             std::lock_guard lk(mutex_);
 			auto sub = subscribers_.at(sub_id).lock();
-
+            ex = executor_.lock();
             if (sub && sub->setReadyIfNot()) {
                 ready_list_.push_back(sub);
                 has_ready_.store(true, std::memory_order_release);

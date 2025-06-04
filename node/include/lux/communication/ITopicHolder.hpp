@@ -14,6 +14,8 @@ namespace lux::communication
     public:
 		friend class Domain;
 
+		ITopicHolder() = default;
+
         virtual ~ITopicHolder();
 
 		const std::string& name() const
