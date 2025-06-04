@@ -7,7 +7,7 @@ namespace lux::communication
 	class NodeBase;
 	class ITopicHolder;
 
-	using NodeBaseSptr = std::shared_ptr<NodeBase>;
+	using NodeBaseSptr	  = std::shared_ptr<NodeBase>;
 	using TopicHolderSptr = std::shared_ptr<ITopicHolder>;
 
 	class LUX_COMMUNICATION_PUBLIC PublisherBase 

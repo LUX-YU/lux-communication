@@ -33,16 +33,12 @@ namespace lux::communication {
     SubscriberBase::SubscriberBase(NodeBaseSptr node, TopicHolderSptr topic, CallbackGroupSptr callback_group)
 		: topic_(std::move(topic)),
 		callback_group_(std::move(callback_group)),
-		node_(std::move(node))
-    { 
-		node_->addSubscriber(this);
-		callback_group_->addSubscriber(this);
-    }
+		node_(std::move(node)){}
 
     SubscriberBase::~SubscriberBase()
     {
-		callback_group_->removeSubscriber(this);
-		node_->removeSubscriber(this);
+		callback_group_->removeSubscriber(id_);
+		node_->removeSubscriber(id_);
     }
     
     size_t SubscriberBase::id() const 

@@ -9,23 +9,26 @@ namespace lux::communication {
     {
         if (!node) return;
         auto& groups = node->callbackGroups();
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(callback_groups_mutex_);
         for (auto& g : groups)
         {
-            callback_groups_.insert(g);
-            g->setExecutor(shared_from_this());
+            callback_groups_.push_back(g);
+            g.lock()->setExecutor(shared_from_this());
         }
     }
     
     void Executor::removeNode(std::shared_ptr<NodeBase> node)
     {
         if (!node) return;
-        const auto& groups = node->callbackGroups();
-        std::lock_guard<std::mutex> lock(mutex_);
-        for (auto& g : groups)
-        {
-            callback_groups_.erase(g);
-        }
+        // const auto& groups = node->callbackGroups();
+        // std::lock_guard<std::mutex> lock(callback_groups_mutex_);
+		// auto iter = std::find(
+        //     callback_groups_.begin(), 
+        //     callback_groups_.end(), 
+        //     node->default_callback_group()
+        // );
+        // 
+		// callback_groups_.erase(iter, callback_groups_.end());
     }
     
     void Executor::spin()
@@ -75,10 +78,10 @@ namespace lux::communication {
     
     bool Executor::checkRunnable()
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(callback_groups_mutex_);
         for (auto& g : callback_groups_)
         {
-            if (g->hasReadySubscribers())
+            if (g.lock()->hasReadySubscribers())
             {
                 return true;
             }
@@ -93,20 +96,20 @@ namespace lux::communication {
     
     void SingleThreadedExecutor::spinSome()
     {
-        std::vector<CallbackGroup*> groups_copy;
+        std::vector<CallbackGroupSptr> groups_copy;
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(callback_groups_mutex_);
             groups_copy.reserve(callback_groups_.size());
             for (auto& g : callback_groups_)
             {
-                groups_copy.push_back(g);
+                groups_copy.push_back(g.lock());
             }
         }
     
         for (auto& group : groups_copy)
         {
             auto readySubs = group->collectReadySubscribers();
-            for (auto sub : readySubs)
+            for (auto& sub : readySubs)
             {
                 if (!running_)
                     break;
@@ -127,13 +130,13 @@ namespace lux::communication {
     
     void MultiThreadedExecutor::spinSome()
     {
-        std::vector<CallbackGroup*> groups_copy;
+        std::vector<CallbackGroupSptr> groups_copy;
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(callback_groups_mutex_);
             groups_copy.reserve(callback_groups_.size());
             for (auto& g : callback_groups_)
             {
-                groups_copy.push_back(g);
+                groups_copy.push_back(g.lock());
             }
         }
     
@@ -145,7 +148,7 @@ namespace lux::communication {
     
             if (group->type() == CallbackGroupType::MutuallyExclusive)
             {
-                for (auto* sub : readySubs)
+                for (auto& sub : readySubs)
                 {
                     if (!running_)
                         break;
@@ -154,7 +157,7 @@ namespace lux::communication {
             }
             else
             {
-                for (auto* sub : readySubs)
+                for (auto& sub : readySubs)
                 {
                     if (!running_)
                         break;
@@ -189,7 +192,7 @@ namespace lux::communication {
         if (!node) return;
         for (auto& g : node->callbackGroups())
         {
-            if (g->type() == CallbackGroupType::Reentrant)
+            if (g.lock()->type() == CallbackGroupType::Reentrant)
             {
                 throw std::runtime_error("[TimeOrderedExecutor] Reentrant group not supported in single-thread time-order mode!");
             }
@@ -242,13 +245,13 @@ namespace lux::communication {
     
     void TimeOrderedExecutor::fetchReadyEntries()
     {
-        std::vector<CallbackGroup*> groups_copy;
+        std::vector<CallbackGroupSptr> groups_copy;
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> lock(callback_groups_mutex_);
             groups_copy.reserve(callback_groups_.size());
             for (auto& g : callback_groups_)
             {
-                groups_copy.push_back(g);
+                groups_copy.push_back(g.lock());
             }
         }
     
@@ -258,9 +261,9 @@ namespace lux::communication {
         for (auto& group : groups_copy)
         {
             auto readySubs = group->collectReadySubscribers();
-            for (auto* subBase : readySubs)
+            for (auto& sub : readySubs)
             {
-                subBase->drainAll(newEntries);
+                sub->drainAll(newEntries);
             }
         }
     
@@ -287,7 +290,7 @@ namespace lux::communication {
     
         while (!buffer_.empty() && buffer_.top().timestamp_ns <= cutoff)
         {
-            auto entry = buffer_.top();
+            auto& entry = buffer_.top();
             buffer_.pop();
             entry.invoker();
         }

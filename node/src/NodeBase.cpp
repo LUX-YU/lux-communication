@@ -9,49 +9,37 @@ namespace lux::communication
 	{
 	}
 
+	NodeBase::~NodeBase() = default;
+
 	const std::string& NodeBase::name()
 	{
 		return node_name_;
 	}
 
-	void NodeBase::addPublisher(PublisherBase* pub)
+	void NodeBase::addCallbackGroup(std::shared_ptr<CallbackGroup> callback_group)
+	{
+		std::lock_guard lck(mutex_callback_groups_);
+		callback_group->setId(
+			callback_groups_.insert(callback_group)
+		);
+	}
+
+	void NodeBase::addPublisher(std::shared_ptr<PublisherBase> pub)
 	{
 		std::lock_guard lk(mutex_pub_);
 		if (publishers_.contains(pub->id()))        // SparseSet 新增 contains(ptr) 接口
 			return;
-		auto id = publishers_.insert(pub);
-		pub->setId(id);
+		pub->setId(publishers_.insert(pub));
 	}
 
-	void NodeBase::addSubscriber(SubscriberBase* sub)
+	void NodeBase::addSubscriber(std::shared_ptr<SubscriberBase> sub)
 	{
 		std::lock_guard lck(mutex_sub_);
-		sub->setId(subscribers_.insert(sub));
 		if (subscribers_.contains(sub->id()))
 		{
 			return;
 		}
-		subscribers_.insert(std::move(sub));
-	}
-
-	void NodeBase::removePublisher(PublisherBase* pub)
-	{
-		std::lock_guard lck(mutex_pub_);
-		if (!publishers_.contains(pub->id()))
-		{
-			return; // Publisher not found
-		}
-		publishers_.erase(pub->id());
-	}
-
-	void NodeBase::removeSubscriber(SubscriberBase* sub)
-	{
-		std::lock_guard lck(mutex_sub_);
-		if (!subscribers_.contains(sub->id()))
-		{
-			return; // Subscriber not found
-		}
-		subscribers_.erase(sub->id());
+		sub->setId(subscribers_.insert(sub));
 	}
 
 	void NodeBase::removePublisher(size_t pub_id)
@@ -74,29 +62,14 @@ namespace lux::communication
 		subscribers_.erase(sub_id);
 	}
 
-	void NodeBase::addCallbackGroup(std::shared_ptr<CallbackGroup> group)
+	void NodeBase::removeCallbackGroup(size_t g_id)
 	{
 		std::lock_guard lck(mutex_callback_groups_);
-		for (const auto& g : callback_groups_)
+		if (!callback_groups_.contains(g_id))
 		{
-			if (g == group)
-			{
-				return; // Group already exists
-			}
+			return; // CallbackGroup not found
 		}
-		
-		callback_groups_.push_back(std::move(group));
-	}
-
-	void NodeBase::removeCallbackGroup(std::shared_ptr<CallbackGroup> group)
-	{
-		std::lock_guard lck(mutex_callback_groups_);
-		auto it = std::find(callback_groups_.begin(), callback_groups_.end(), group);
-		if (it != callback_groups_.end())
-		{
-			callback_groups_.erase(it);
-			return; // Group not found
-		}
+		callback_groups_.erase(g_id);
 	}
 
 	Domain& NodeBase::domain()
@@ -109,8 +82,9 @@ namespace lux::communication
 		return *domain_;
 	}
 
-	const NodeBase::CallbackGroupList NodeBase::callbackGroups() const
+	const std::vector<std::weak_ptr<CallbackGroup>>& NodeBase::callbackGroups() const
 	{
-		return callback_groups_;
+		std::lock_guard lck(mutex_callback_groups_);
+		return callback_groups_.values();
 	}
 } // namespace lux::communication

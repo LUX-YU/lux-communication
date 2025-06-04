@@ -22,14 +22,16 @@ namespace lux::communication::intraprocess
     using lux::communication::CallbackGroup;
     using lux::communication::CallbackGroupType;
 
-    class LUX_COMMUNICATION_PUBLIC Node 
-        : public NodeBase, public std::enable_shared_from_this<Node>
+	class LUX_COMMUNICATION_PUBLIC Node 
+        : public lux::communication::TNodeBase<Node>,
+		  public std::enable_shared_from_this<Node>
     {
     public:
         explicit Node(
             const std::string& node_name, 
             std::shared_ptr<Domain> domain = default_domain()
         );
+
 
         ~Node();
 
@@ -43,13 +45,16 @@ namespace lux::communication::intraprocess
         std::shared_ptr<Publisher<T>> createPublisher(const std::string& topic_name)
         {
             // 1) Create or get the Topic from the Domain
-            auto topic_ptr = domain().createOrGetTopic<Topic<T>, T>(topic_name);
+            TopicHolderSptr topic_ptr
+                = domain().createOrGetTopic<Topic<T>, T>(topic_name);
 
             // 2) Construct the Publisher
             auto pub = std::make_shared<Publisher<T>>(
                 shared_from_this(),
                 topic_ptr
             );
+
+            this->addPublisher(pub);
 
             return pub;
         }
@@ -81,7 +86,8 @@ namespace lux::communication::intraprocess
                 group
             );
             
-            addCallbackGroup(group.get());
+			this->addSubscriber(sub);
+            group->addSubscriber(sub);
 
             return sub;
         }

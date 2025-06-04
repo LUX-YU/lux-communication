@@ -7,12 +7,12 @@ namespace lux::communication
 	PublisherBase::PublisherBase(NodeBaseSptr node, TopicHolderSptr topic)
 		: topic_(std::move(topic)), node_(std::move(node))
 	{
-		node_->addPublisher(this);
+		
 	}
 
 	PublisherBase::~PublisherBase()
 	{
-		node_->removePublisher(this);
+		node_->removePublisher(id_);
 	}
 
 	size_t PublisherBase::id() const

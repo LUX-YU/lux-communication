@@ -1,11 +1,15 @@
 #include "lux/communication/CallbackGroup.hpp"
 #include "lux/communication/Executor.hpp"
+#include "lux/communication/NodeBase.hpp"
 
 namespace lux::communication {
-    CallbackGroup::CallbackGroup(CallbackGroupType type)
-        : type_(type) {}
+    CallbackGroup::CallbackGroup(std::shared_ptr<NodeBase> node, CallbackGroupType type)
+        : node_(std::move(node)), type_(type) {}
     
-    CallbackGroup::~CallbackGroup() = default;
+    CallbackGroup::~CallbackGroup()
+    {
+		node_->removeCallbackGroup(id());
+    }
     
     CallbackGroupType CallbackGroup::type() const {
         return type_;
@@ -24,13 +28,7 @@ namespace lux::communication {
     void CallbackGroup::removeSubscriber(size_t sub_id)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!sub) return;
-        subscribers_.erase(sub->id());
-        auto it = std::find(ready_list_.begin(), ready_list_.end(), sub);
-        if (it != ready_list_.end())
-        {
-            ready_list_.erase(it);
-        }
+        subscribers_.erase(sub_id);
     }
     
     bool CallbackGroup::hasReadySubscribers() const
@@ -38,11 +36,13 @@ namespace lux::communication {
         return has_ready_.load(std::memory_order_acquire);
     }
     
-    void CallbackGroup::notify(const SubscriberSptr& sub)
+    void CallbackGroup::notify(size_t sub_id)
     {
         std::shared_ptr<Executor> ex;
         {
             std::lock_guard lk(mutex_);
+			auto sub = subscribers_.at(sub_id).lock();
+
             if (sub && sub->setReadyIfNot()) {
                 ready_list_.push_back(sub);
                 has_ready_.store(true, std::memory_order_release);
@@ -72,5 +72,15 @@ namespace lux::communication {
     std::shared_ptr<Executor> CallbackGroup::getExecutor() const
     {
         return executor_.lock();
+    }
+
+    size_t CallbackGroup::id() const
+    {
+		return id_;
+    }
+
+    void CallbackGroup::setId(size_t id)
+    {
+		id_ = id;
     }
 } // namespace lux::communication

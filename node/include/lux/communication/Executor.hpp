@@ -36,15 +36,17 @@ namespace lux::communication {
 		virtual void wakeup();
 
 	protected:
+		std::vector<CallbackGroupWptr>			callback_groups_;
+		std::mutex								callback_groups_mutex_;
+
+	protected:
 		void waitCondition();
 		void notifyCondition();
 		virtual bool checkRunnable();
 
-		std::atomic<bool>                   running_;
-		std::mutex                          cv_mutex_;
-		std::condition_variable             cv_;
-		std::mutex                          mutex_;
-		std::unordered_set<CallbackGroup*>  callback_groups_;
+		std::atomic<bool>						running_;
+		std::mutex								cv_mutex_;
+		std::condition_variable					cv_;
 	};
 
 	class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor

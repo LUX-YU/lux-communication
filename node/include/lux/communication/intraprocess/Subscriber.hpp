@@ -41,7 +41,7 @@ namespace lux::communication::intraprocess
         {
             push(queue_, std::move(msg));
 
-            SubscriberBase::callbackGroup().notify(this);
+            SubscriberBase::callbackGroup().notify(SubscriberBase::id());
         }
 
         // Called by Node spinOnce()

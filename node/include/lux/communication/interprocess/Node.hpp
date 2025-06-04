@@ -17,8 +17,9 @@
 
 namespace lux::communication::interprocess 
 {
-    class LUX_COMMUNICATION_PUBLIC Node 
-		: public lux::communication::NodeBase, public std::enable_shared_from_this<Node>
+    class LUX_COMMUNICATION_PUBLIC Node
+		: public lux::communication::TNodeBase<Node>, 
+          public std::enable_shared_from_this<Node>
     {
     public:
         explicit Node(const std::string& name, std::shared_ptr<lux::communication::Domain> domain = default_domain());
@@ -53,8 +54,6 @@ namespace lux::communication::interprocess
                 std::forward<Callback>(cb), 
                 group
             );
-
-            callback_groups_.push_back(group);
            
             subscriber_stoppers_.emplace_back([s=sub]{ s->stop(); });
             return sub;
@@ -64,7 +63,6 @@ namespace lux::communication::interprocess
     
     private:
         std::string name_;
-        std::vector<std::shared_ptr<lux::communication::CallbackGroup>> callback_groups_;
         std::vector<std::function<void()>> subscriber_stoppers_;
         int next_sub_id_{0};
         std::shared_ptr<lux::communication::Domain> domain_;

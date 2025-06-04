@@ -3,7 +3,7 @@
 namespace lux::communication::interprocess {
 
 Node::Node(const std::string& name, std::shared_ptr<lux::communication::Domain> domain)
-	: NodeBase(std::move(name), std::move(domain))
+	: TNodeBase(std::move(name), std::move(domain))
 {}
 
 Node::~Node()

@@ -6,6 +6,7 @@
 #include <atomic>
 #include <functional>
 #include <cassert>
+#include <deque>
 #include <unordered_set>
 #include <condition_variable>
 #include <lux/cxx/container/SparseSet.hpp>
@@ -15,6 +16,7 @@
 namespace lux::communication
 {
     // Forward declarations
+	class NodeBase;
     class Executor;
     class SubscriberBase;
 	using SubscriberWptr = std::weak_ptr<SubscriberBase>;
@@ -28,8 +30,10 @@ namespace lux::communication
 
     class LUX_COMMUNICATION_PUBLIC CallbackGroup
     {
+        friend class NodeBase;
     public:
-        explicit CallbackGroup(CallbackGroupType type = CallbackGroupType::MutuallyExclusive);
+
+        explicit CallbackGroup(std::shared_ptr<NodeBase>, CallbackGroupType type = CallbackGroupType::MutuallyExclusive);
 
         ~CallbackGroup();
 
@@ -45,7 +49,7 @@ namespace lux::communication
 
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor
-        void notify(const SubscriberSptr& sub);
+        void notify(size_t sub_id);
 
         // For Executor to collect all ready subscribers (take them in one go)
         std::vector<SubscriberSptr> collectReadySubscribers();
@@ -54,11 +58,17 @@ namespace lux::communication
         void setExecutor(std::shared_ptr<Executor> exec);
         std::shared_ptr<Executor> getExecutor() const;
 
+        size_t id() const;
+
     private:
-        size_t                                      id_;
+        void setId(size_t id);
+
+        size_t                                      id_{ 0 };
 
         CallbackGroupType                           type_;
         mutable std::mutex                          mutex_;
+
+		std::shared_ptr<NodeBase>					node_;
 
         // Use SparseSet<int, SubscriberBase*> for fast add/remove.
         // The 'int' key must come from something like sub->getId().
@@ -74,10 +84,4 @@ namespace lux::communication
 
         std::atomic<bool>                           has_ready_{ false };
     };
-
-    inline std::shared_ptr<CallbackGroup> default_callback_group()
-    {
-        static auto instance = std::make_shared<CallbackGroup>();
-        return instance;
-    }
 } // namespace lux::communication::intraprocess

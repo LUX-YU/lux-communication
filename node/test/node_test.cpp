@@ -600,8 +600,8 @@ void testMultiThreadedExecutorWithCallbackGroups(int threadCount = 4, int messag
 	auto node = std::make_shared<Node>("NodeWithGroups", domain);
 
 	// 1) Create two callback groups: Reentrant and MutuallyExclusive
-	auto groupR = std::make_shared<CallbackGroup>(CallbackGroupType::Reentrant);
-	auto groupM = std::make_shared<CallbackGroup>(CallbackGroupType::MutuallyExclusive);
+	auto groupR = std::make_shared<CallbackGroup>(node, CallbackGroupType::Reentrant);
+	auto groupM = std::make_shared<CallbackGroup>(node, CallbackGroupType::MutuallyExclusive);
 
 	// 2) Prepare concurrency tracking data
 	//    - active and peak counts for each group

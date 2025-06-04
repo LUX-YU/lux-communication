@@ -51,7 +51,7 @@ namespace lux::communication
 
         void setId(size_t id);
 
-        size_t              id_;
+        size_t              id_{0};
         TopicHolderSptr     topic_;
         CallbackGroupSptr   callback_group_;
 		NodeBaseSptr	    node_;

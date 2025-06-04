@@ -95,26 +95,26 @@ namespace lux::communication::intraprocess
         void addSubscriber(Subscriber<T> *sub)
         {
             while (true) {
-                auto oldPtr = subs_.load(std::memory_order_acquire);
-                detail::incRef(oldPtr);
+                auto old_ptr = subs_.load(std::memory_order_acquire);
+                detail::incRef(old_ptr);
 
                 // Make a copy
-                auto newPtr = new detail::SubscriberList<T>(*oldPtr);
+                auto new_ptr = new detail::SubscriberList<T>(*old_ptr);
                 // Add subscriber to the copy
-                newPtr->subs.push_back(sub);
+                new_ptr->subs.push_back(sub);
 
                 // CAS
-                if (subs_.compare_exchange_weak(oldPtr, newPtr,
+                if (subs_.compare_exchange_weak(old_ptr, new_ptr,
                     std::memory_order_release,
                     std::memory_order_relaxed))
                 {
-                    detail::decRef(oldPtr);
+                    detail::decRef(old_ptr);
                     break; // success
                 }
 
                 // CAS failed, which means there was concurrent modification
-                delete newPtr;
-                detail::decRef(oldPtr);
+                delete new_ptr;
+                detail::decRef(old_ptr);
             }
         }
 
@@ -124,32 +124,32 @@ namespace lux::communication::intraprocess
         void removeSubscriber(Subscriber<T> *sub)
         {
             while (true) {
-                auto oldPtr = subs_.load(std::memory_order_acquire);
-                detail::incRef(oldPtr);
+                auto old_ptr = subs_.load(std::memory_order_acquire);
+                detail::incRef(old_ptr);
 
                 // Make a copy
-                auto newPtr = new detail::SubscriberList<T>(*oldPtr);
+                auto new_ptr = new detail::SubscriberList<T>(*old_ptr);
 
                 // Remove sub (swap-and-pop)
-                auto &vec = newPtr->subs;
+                auto &vec = new_ptr->subs;
                 auto it = std::find(vec.begin(), vec.end(), sub);
                 if (it != vec.end()) {
                     *it = vec.back();
                     vec.pop_back();
                 }
 
-                if (subs_.compare_exchange_weak(oldPtr, newPtr,
+                if (subs_.compare_exchange_weak(old_ptr, new_ptr,
                     std::memory_order_release,
                     std::memory_order_relaxed))
                 {
                     // Success
-                    detail::decRef(oldPtr);
+                    detail::decRef(old_ptr);
                     break;
                 }
         
                 // CAS failed, meaning concurrent modification, need to retry
-                delete newPtr;
-                detail::decRef(oldPtr);
+                delete new_ptr;
+                detail::decRef(old_ptr);
             }
         }
 
