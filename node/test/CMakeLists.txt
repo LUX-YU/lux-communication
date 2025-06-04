@@ -5,7 +5,7 @@ add_executable(timeorder_executor_test timeorder_executor_test.cpp)
 target_link_libraries(timeorder_executor_test PRIVATE lux::communication::node)
 
 add_executable(interprocess_subscriber interprocess_subscriber.cpp)
-target_link_libraries(timeorder_executor_test PRIVATE lux::communication::node)
+target_link_libraries(interprocess_subscriber PRIVATE lux::communication::node)
 
 add_executable(interprocess_publisher interprocess_publisher.cpp)
 target_link_libraries(interprocess_publisher PRIVATE lux::communication::node)

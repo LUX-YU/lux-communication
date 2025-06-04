@@ -82,6 +82,9 @@ namespace lux::communication
 
 			auto self_sptr = static_cast<Derived&>(*this).shared_from_this();
 			default_callback_group_ = std::make_shared<CallbackGroup>(self_sptr);
+
+			NodeBase::addCallbackGroup(default_callback_group_);
+
 			return default_callback_group_;
 		}
 	};

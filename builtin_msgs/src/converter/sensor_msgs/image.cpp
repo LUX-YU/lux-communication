@@ -137,7 +137,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 	bool ImageS::isLoaded() const
 	{
-		return !_data;
+		return _data;
 	}
 
 	int ImageS::width() const

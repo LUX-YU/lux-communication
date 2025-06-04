@@ -26,10 +26,6 @@ namespace lux::communication::interprocess
     
         ~Node();
     
-        int getDomainId() const;
-    
-        std::shared_ptr<lux::communication::CallbackGroup> getDefaultCallbackGroup() const;
-    
         template<typename T>
         std::shared_ptr<Publisher<T>> createPublisher(const std::string& topic)
         {
@@ -65,7 +61,6 @@ namespace lux::communication::interprocess
         std::string name_;
         std::vector<std::function<void()>> subscriber_stoppers_;
         int next_sub_id_{0};
-        std::shared_ptr<lux::communication::Domain> domain_;
     }; 
 
 } // namespace lux::communication::interprocess

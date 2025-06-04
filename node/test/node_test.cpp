@@ -29,7 +29,7 @@ struct ComplexMsg
  *  - NodeA in domain1 publishes messages
  *  - NodeB in domain2 subscribes to the same topic but should not receive them
  */
-void testDomainIsolation()
+static void testDomainIsolation()
 {
 	using namespace lux::communication::intraprocess;
 
@@ -301,7 +301,8 @@ void testPerformanceSinglePubSub(int messageCount = 100000)
 	// Subscriber
 	auto sub = node->createSubscriber<StringMsg>("perf_topic", [&](const StringMsg& msg) {
 		recvCount++;
-		});
+		}
+	);
 
 	// Publisher
 	auto pub = node->createPublisher<StringMsg>("perf_topic");
