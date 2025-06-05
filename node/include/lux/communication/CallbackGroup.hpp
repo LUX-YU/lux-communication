@@ -72,7 +72,7 @@ namespace lux::communication
 
         // Use SparseSet<int, SubscriberBase*> for fast add/remove.
         // The 'int' key must come from something like sub->getId().
-		lux::cxx::AutoSparseSet<SubscriberWptr>     subscribers_;
+		std::unordered_map<size_t, SubscriberWptr>  subscribers_;
 
         // We still keep a simple vector as a "ready queue."
         // If you also wanted O(1) removal from the ready list, you could

@@ -22,7 +22,7 @@ namespace lux::communication {
 		if (subscribers_.contains(sub->id())) {
 			return; // Subscriber already exists
 		}
-        subscribers_.insert(sub);
+		subscribers_[sub->id()] = sub;
     }
     
     void CallbackGroup::removeSubscriber(size_t sub_id)

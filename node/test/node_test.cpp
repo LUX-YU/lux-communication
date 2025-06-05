@@ -591,7 +591,7 @@ void testMultiThreadedExecutorBasic(int threadCount = 4, int messageCount = 5000
  *        - Each group has two subscribers
  *        - Publish many messages and observe concurrency
  */
-void testMultiThreadedExecutorWithCallbackGroups(int threadCount = 4, int messageCount = 10000)
+static void testMultiThreadedExecutorWithCallbackGroups(int threadCount = 4, int messageCount = 10000)
 {
 	using namespace lux::communication::intraprocess;
 

@@ -4,7 +4,7 @@
 #include <atomic>
 #include <algorithm>
 #include <cassert>
-#include <memory>    // for std::unique_ptr
+#include <memory>
 #include <lux/communication/ITopicHolder.hpp>
 
 namespace lux::communication { class Domain; }

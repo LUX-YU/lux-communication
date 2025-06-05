@@ -27,18 +27,12 @@ namespace lux::communication
 	void NodeBase::addPublisher(std::shared_ptr<PublisherBase> pub)
 	{
 		std::lock_guard lk(mutex_pub_);
-		if (publishers_.contains(pub->id()))        // SparseSet 新增 contains(ptr) 接口
-			return;
 		pub->setId(publishers_.insert(pub));
 	}
 
 	void NodeBase::addSubscriber(std::shared_ptr<SubscriberBase> sub)
 	{
 		std::lock_guard lck(mutex_sub_);
-		if (subscribers_.contains(sub->id()))
-		{
-			return;
-		}
 		sub->setId(subscribers_.insert(sub));
 	}
 
