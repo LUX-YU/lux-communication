@@ -157,7 +157,7 @@ namespace lux::communication::intraprocess
          * @brief Distribute messages (zero-copy)
          *        Just atomically load subs_ and iterate, no locking needed
          */
-        void publish(std::shared_ptr<T> msg)
+        void publish(message_t<T> msg)
         {
             auto listPtr = subs_.load(std::memory_order_acquire);
             detail::incRef(listPtr);  // Prevent listPtr from being freed by concurrent remove

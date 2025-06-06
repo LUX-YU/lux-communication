@@ -840,8 +840,8 @@ int main()
 	testZeroCopyCheck();
 
 	// 2. Performance tests
-	testPerformanceSinglePubSub(100000);       // 100k messages
-	testPerformanceMultiSubscriber(5, 50000);  // 5 subscribers, 50k messages
+	testPerformanceSinglePubSub(10000000);       // 10000k messages
+	testPerformanceMultiSubscriber(5, 5000000);  // 5 subscribers, 5000k messages
 
 	testLatencySinglePubSub(1e5); // example run
 	testMultiThreadedExecutorBasic(/*thread_count*/ 4, /*message_count*/ 50000);

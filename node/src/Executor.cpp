@@ -31,13 +31,13 @@ namespace lux::communication {
 		// callback_groups_.erase(iter, callback_groups_.end());
     }
     
-std::shared_ptr<SubscriberBase> Executor::waitOneReady()
-{
-    ready_sem_.acquire();
-    std::shared_ptr<SubscriberBase> sub;
-    ready_queue_.try_dequeue(sub);
-    return sub;
-}
+    std::shared_ptr<SubscriberBase> Executor::waitOneReady()
+    {
+        ready_sem_.acquire();
+        std::shared_ptr<SubscriberBase> sub;
+        ready_queue_.try_dequeue(sub);
+        return sub;
+    }
 
     void Executor::enqueueReady(std::shared_ptr<SubscriberBase> sub)
     {
