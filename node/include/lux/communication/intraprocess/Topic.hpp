@@ -162,6 +162,18 @@ namespace lux::communication::intraprocess
             auto listPtr = subs_.load(std::memory_order_acquire);
             detail::incRef(listPtr);  // Prevent listPtr from being freed by concurrent remove
 
+			// fast path: if only one subscriber, just move the message
+			if (listPtr->subs.size() == 1)
+			{
+				auto sub = listPtr->subs[0];
+				if (sub)
+				{
+					sub->enqueue(std::move(msg));
+					detail::decRef(listPtr);  // Done iterating
+					return;  // Early exit
+				}
+			}
+
             for (auto* sub : listPtr->subs)
             {
                 if (sub)

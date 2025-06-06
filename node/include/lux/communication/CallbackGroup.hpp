@@ -9,6 +9,7 @@
 #include <deque>
 #include <unordered_set>
 #include <condition_variable>
+#include "Queue.hpp"
 #include <lux/cxx/container/SparseSet.hpp>
 #include <lux/communication/visibility.h>
 #include <lux/communication/SubscriberBase.hpp>
@@ -49,7 +50,7 @@ namespace lux::communication
 
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor
-        void notify(size_t sub_id);
+        void notify(SubscriberSptr sub);
 
         // For Executor to collect all ready subscribers (take them in one go)
         std::vector<SubscriberSptr> collectReadySubscribers();
@@ -77,7 +78,7 @@ namespace lux::communication
         // We still keep a simple vector as a "ready queue."
         // If you also wanted O(1) removal from the ready list, you could
         // store them in another SparseSet. Usually, we just pop them in FIFO order.
-        std::deque<SubscriberSptr>                  ready_list_;
+        lux::communication::queue_t<SubscriberBase> ready_list_;
 
         // A weak reference to whichever Executor is responsible for this group
         std::weak_ptr<Executor>                     executor_;

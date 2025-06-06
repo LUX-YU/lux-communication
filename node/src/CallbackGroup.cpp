@@ -36,32 +36,38 @@ namespace lux::communication {
         return has_ready_.load(std::memory_order_acquire);
     }
     
-    void CallbackGroup::notify(size_t sub_id)
+    void CallbackGroup::notify(SubscriberSptr sub)
     {
+        if (!sub) return;
+
+        if (!sub->setReadyIfNot())
+            return;
+
         std::shared_ptr<Executor> ex;
+
         {
-            std::lock_guard lk(mutex_);
-			auto sub = subscribers_.at(sub_id).lock();
+            // std::lock_guard lk(mutex_);
+            lux::communication::push(ready_list_, std::move(sub));
             ex = executor_.lock();
-            if (sub && sub->setReadyIfNot()) {
-                ready_list_.push_back(sub);
-                has_ready_.store(true, std::memory_order_release);
-            }
         }
-        if (ex)  ex->wakeup();
+
+        bool was_ready = has_ready_.exchange(true, std::memory_order_acq_rel);
+        if (!was_ready && ex)
+        {
+            ex->wakeup();
+        }
     }
     
     std::vector<SubscriberSptr> CallbackGroup::collectReadySubscribers()
     {
-        std::lock_guard lk(mutex_);
         has_ready_.store(false, std::memory_order_release);
         std::vector<SubscriberSptr> out;
-        out.assign(
-            std::make_move_iterator(ready_list_.begin()),
-            std::make_move_iterator(ready_list_.end())
-        );
-        ready_list_.clear();
-        return out;
+        SubscriberSptr sub;
+        while (ready_list_.try_dequeue(sub))
+        {
+            out.push_back(std::move(sub));
+        }
+		return out;
     }
     
     void CallbackGroup::setExecutor(std::shared_ptr<Executor> exec)
