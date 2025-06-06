@@ -31,11 +31,6 @@ namespace lux::communication {
         subscribers_.erase(sub_id);
     }
     
-    bool CallbackGroup::hasReadySubscribers() const
-    {
-        return has_ready_.load(std::memory_order_acquire);
-    }
-    
     void CallbackGroup::notify(SubscriberSptr sub)
     {
         if (!sub) return;
@@ -43,32 +38,13 @@ namespace lux::communication {
         if (!sub->setReadyIfNot())
             return;
 
-        std::shared_ptr<Executor> ex;
-
+        auto ex = executor_.lock();
+        if (ex)
         {
-            // std::lock_guard lk(mutex_);
-            lux::communication::push(ready_list_, std::move(sub));
-            ex = executor_.lock();
-        }
-
-        bool was_ready = has_ready_.exchange(true, std::memory_order_acq_rel);
-        if (!was_ready && ex)
-        {
-            ex->wakeup();
+            ex->enqueueReady(std::move(sub));
         }
     }
     
-    std::vector<SubscriberSptr> CallbackGroup::collectReadySubscribers()
-    {
-        has_ready_.store(false, std::memory_order_release);
-        std::vector<SubscriberSptr> out;
-        SubscriberSptr sub;
-        while (ready_list_.try_dequeue(sub))
-        {
-            out.push_back(std::move(sub));
-        }
-		return out;
-    }
     
     void CallbackGroup::setExecutor(std::shared_ptr<Executor> exec)
     {

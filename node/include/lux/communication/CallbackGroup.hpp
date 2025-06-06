@@ -46,14 +46,9 @@ namespace lux::communication
 
         void removeSubscriber(size_t sub_id);
 
-        bool hasReadySubscribers() const;
-
         // When a particular Subscriber has new data
         // The purpose is to add the Subscriber to the "ready queue" and notify the Executor
         void notify(SubscriberSptr sub);
-
-        // For Executor to collect all ready subscribers (take them in one go)
-        std::vector<SubscriberSptr> collectReadySubscribers();
             
         // Set/get Executor (called by Executor::addNode())
         void setExecutor(std::shared_ptr<Executor> exec);
@@ -75,14 +70,7 @@ namespace lux::communication
         // The 'int' key must come from something like sub->getId().
 		std::unordered_map<size_t, SubscriberWptr>  subscribers_;
 
-        // We still keep a simple vector as a "ready queue."
-        // If you also wanted O(1) removal from the ready list, you could
-        // store them in another SparseSet. Usually, we just pop them in FIFO order.
-        lux::communication::queue_t<SubscriberBase> ready_list_;
-
         // A weak reference to whichever Executor is responsible for this group
         std::weak_ptr<Executor>                     executor_;
-
-        std::atomic<bool>                           has_ready_{ false };
     };
 } // namespace lux::communication::intraprocess
