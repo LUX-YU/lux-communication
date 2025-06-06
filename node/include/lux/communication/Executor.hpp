@@ -3,6 +3,8 @@
 #include <vector>
 #include <mutex>
 #include <condition_variable>
+#include <semaphore>
+#include <climits>
 #include <atomic>
 #include <memory>
 #include <thread>
@@ -30,14 +32,23 @@ namespace lux::communication {
 		virtual void addNode(std::shared_ptr<NodeBase> node);
 		virtual void removeNode(std::shared_ptr<NodeBase> node);
 
-		virtual void spinSome() = 0;
-		virtual void spin();
-		virtual void stop();
-		virtual void wakeup();
+                virtual void spinSome() = 0;
+                virtual void spin();
+                virtual void stop();
+                virtual void wakeup();
+
+                std::shared_ptr<SubscriberBase> waitOneReady();
+                void enqueueReady(std::shared_ptr<SubscriberBase> sub);
+                virtual void handleSubscriber(std::shared_ptr<SubscriberBase> sub) = 0;
 
 	protected:
 		std::vector<CallbackGroupWptr>			callback_groups_;
 		std::mutex								callback_groups_mutex_;
+
+		using ReadyQueue = lux::communication::queue_t<SubscriberBase>;
+
+		ReadyQueue						ready_queue_;
+		std::counting_semaphore<INT_MAX>	ready_sem_{0};
 
 	protected:
 		void waitCondition();
@@ -49,50 +60,52 @@ namespace lux::communication {
 		std::condition_variable					cv_;
 	};
 
-	class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
-	{
-	public:
-		SingleThreadedExecutor() = default;
-		~SingleThreadedExecutor() override;
+        class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public Executor
+        {
+        public:
+                SingleThreadedExecutor() = default;
+                ~SingleThreadedExecutor() override;
 
-		void spinSome() override;
-	};
+                void spinSome() override;
+                void handleSubscriber(std::shared_ptr<SubscriberBase> sub) override;
+        };
 
-	class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
-	{
-	public:
-		explicit MultiThreadedExecutor(size_t threadNum = 2);
-		~MultiThreadedExecutor() override;
+        class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
+        {
+        public:
+                explicit MultiThreadedExecutor(size_t threadNum = 2);
+                ~MultiThreadedExecutor() override;
 
-		void spinSome() override;
-		void stop() override;
+                void spinSome() override;
+                void stop() override;
+                void handleSubscriber(std::shared_ptr<SubscriberBase> sub) override;
 
-	private:
-		lux::cxx::ThreadPool thread_pool_;
-	};
+        private:
+                lux::cxx::ThreadPool thread_pool_;
+        };
 
-	class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
-	{
-	public:
-		explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{ 0 });
-		~TimeOrderedExecutor() override;
+        class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
+        {
+        public:
+                explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{ 0 });
+                ~TimeOrderedExecutor() override;
 
 		void addNode(std::shared_ptr<NodeBase> node) override;
 
 		void spinSome() override;
 		void spin() override;
-		void stop() override;
+                void stop() override;
 
 		void setTimeOffset(std::chrono::nanoseconds offset);
-		std::chrono::nanoseconds getTimeOffset() const;
+                std::chrono::nanoseconds getTimeOffset() const;
 
-	protected:
-		bool checkRunnable() override;
+        protected:
+                bool checkRunnable() override;
+                void handleSubscriber(std::shared_ptr<SubscriberBase> sub) override;
 
-	private:
-		void fetchReadyEntries();
-		void processReadyEntries();
-		void doWait();
+        private:
+                void processReadyEntries();
+                void doWait();
 
 	private:
 		std::priority_queue<TimeExecEntry>  buffer_;

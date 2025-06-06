@@ -31,31 +31,53 @@ namespace lux::communication {
 		// callback_groups_.erase(iter, callback_groups_.end());
     }
     
+std::shared_ptr<SubscriberBase> Executor::waitOneReady()
+{
+    ready_sem_.acquire();
+    std::shared_ptr<SubscriberBase> sub;
+    ready_queue_.try_dequeue(sub);
+    return sub;
+}
+
+    void Executor::enqueueReady(std::shared_ptr<SubscriberBase> sub)
+    {
+        if (sub)
+        {
+            ready_queue_.enqueue(std::move(sub));
+            ready_sem_.release();
+        }
+    }
+
     void Executor::spin()
     {
         if (running_)
             return;
         running_ = true;
-    
+
         while (running_)
         {
-            spinSome();
-            if (running_)
+            auto sub = waitOneReady();
+            if (!running_)
+                break;
+            if (sub)
             {
-                waitCondition();
+                handleSubscriber(std::move(sub));
             }
         }
     }
     
     void Executor::stop()
     {
-        running_ = false;
-        notifyCondition();
+        if (running_.exchange(false))
+        {
+            ready_sem_.release();
+            notifyCondition();
+        }
     }
     
     void Executor::wakeup()
     {
-        notifyCondition();
+        ready_sem_.release();
     }
     
     void Executor::waitCondition()
@@ -78,15 +100,7 @@ namespace lux::communication {
     
     bool Executor::checkRunnable()
     {
-        std::lock_guard<std::mutex> lock(callback_groups_mutex_);
-        for (auto& g : callback_groups_)
-        {
-            if (g.lock()->hasReadySubscribers())
-            {
-                return true;
-            }
-        }
-        return false;
+        return ready_queue_.size_approx() > 0;
     }
     
     SingleThreadedExecutor::~SingleThreadedExecutor()
@@ -96,25 +110,20 @@ namespace lux::communication {
     
     void SingleThreadedExecutor::spinSome()
     {
-        std::vector<CallbackGroupSptr> groups_copy;
+        auto sub = waitOneReady();
+        if (!running_)
+            return;
+        if (sub)
         {
-            std::lock_guard<std::mutex> lock(callback_groups_mutex_);
-            groups_copy.reserve(callback_groups_.size());
-            for (auto& g : callback_groups_)
-            {
-                groups_copy.push_back(g.lock());
-            }
+            handleSubscriber(std::move(sub));
         }
-    
-        for (auto& group : groups_copy)
+    }
+
+    void SingleThreadedExecutor::handleSubscriber(std::shared_ptr<SubscriberBase> sub)
+    {
+        if (sub)
         {
-            auto readySubs = group->collectReadySubscribers();
-            for (auto& sub : readySubs)
-            {
-                if (!running_)
-                    break;
-                sub->takeAll();
-            }
+            sub->takeAll();
         }
     }
     
@@ -130,40 +139,28 @@ namespace lux::communication {
     
     void MultiThreadedExecutor::spinSome()
     {
-        std::vector<CallbackGroupSptr> groups_copy;
+        auto sub = waitOneReady();
+        if (!running_)
+            return;
+        if (sub)
         {
-            std::lock_guard<std::mutex> lock(callback_groups_mutex_);
-            groups_copy.reserve(callback_groups_.size());
-            for (auto& g : callback_groups_)
-            {
-                groups_copy.push_back(g.lock());
-            }
+            handleSubscriber(std::move(sub));
         }
-    
-        for (auto& group : groups_copy)
+    }
+
+    void MultiThreadedExecutor::handleSubscriber(std::shared_ptr<SubscriberBase> sub)
+    {
+        if (!sub)
+            return;
+
+        auto& group = sub->callbackGroup();
+        if (group.type() == CallbackGroupType::MutuallyExclusive)
         {
-            auto readySubs = group->collectReadySubscribers();
-            if (readySubs.empty())
-                continue;
-    
-            if (group->type() == CallbackGroupType::MutuallyExclusive)
-            {
-                for (auto& sub : readySubs)
-                {
-                    if (!running_)
-                        break;
-                    sub->takeAll();
-                }
-            }
-            else
-            {
-                for (auto& sub : readySubs)
-                {
-                    if (!running_)
-                        break;
-                    thread_pool_.submit([sub] { sub->takeAll(); });
-                }
-            }
+            sub->takeAll();
+        }
+        else
+        {
+            thread_pool_.submit([sub]{ sub->takeAll(); });
         }
     }
     
@@ -171,6 +168,7 @@ namespace lux::communication {
     {
         if (running_.exchange(false))
         {
+            ready_sem_.release();
             notifyCondition();
         }
         thread_pool_.close();
@@ -202,7 +200,11 @@ namespace lux::communication {
     
     void TimeOrderedExecutor::spinSome()
     {
-        fetchReadyEntries();
+        auto sub = waitOneReady();
+        if (sub)
+        {
+            handleSubscriber(std::move(sub));
+        }
         processReadyEntries();
     }
     
@@ -242,36 +244,21 @@ namespace lux::communication {
     {
         return !buffer_.empty();
     }
-    
-    void TimeOrderedExecutor::fetchReadyEntries()
+
+    void TimeOrderedExecutor::handleSubscriber(std::shared_ptr<SubscriberBase> sub)
     {
-        std::vector<CallbackGroupSptr> groups_copy;
-        {
-            std::lock_guard<std::mutex> lock(callback_groups_mutex_);
-            groups_copy.reserve(callback_groups_.size());
-            for (auto& g : callback_groups_)
-            {
-                groups_copy.push_back(g.lock());
-            }
-        }
-    
-        std::vector<TimeExecEntry> newEntries;
-        newEntries.reserve(64);
-    
-        for (auto& group : groups_copy)
-        {
-            auto readySubs = group->collectReadySubscribers();
-            for (auto& sub : readySubs)
-            {
-                sub->drainAll(newEntries);
-            }
-        }
-    
-        for (auto& e : newEntries)
+        if (!sub)
+            return;
+
+        std::vector<TimeExecEntry> entries;
+        entries.reserve(16);
+        sub->drainAll(entries);
+        for (auto& e : entries)
         {
             buffer_.push(std::move(e));
         }
     }
+    
     
     void TimeOrderedExecutor::processReadyEntries()
     {
