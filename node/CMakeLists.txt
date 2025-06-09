@@ -90,12 +90,14 @@ if(USE_LOCKFREE_QUEUE)
 
 	component_add_transitive_commands(
 		node
+		"find_package(cppzmq   CONFIG REQUIRED)"
 		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
 		"${CONCURRENT_QUEUE_DEPENDS}"
 	)
 else()
 	component_add_transitive_commands(
 		node
+		"find_package(cppzmq   CONFIG REQUIRED)"
 		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
 	)
 endif()
