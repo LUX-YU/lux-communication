@@ -3,6 +3,8 @@
 #include <string>
 #include <memory>
 #include <cassert>
+#include <lux/communication/Domain.hpp>
+#include <lux/communication/NodeBase.hpp>
 #include <lux/communication/PublisherBase.hpp>
 #include <lux/communication/visibility.h>
 #include "Topic.hpp"
@@ -13,12 +15,14 @@ namespace lux::communication::intraprocess
     template <typename T>
     class Publisher : public lux::communication::PublisherBase
     {
-    public:
-        friend class Node;
+        static TopicSptr getTopic(NodeBase* node)
+        {
+            return node->domain().createOrGetTopic<Topic<T>, T>();
+        }
 
-        // Only Node can call this constructor
-        Publisher(std::shared_ptr<Node> node, TopicHolderSptr topic)
-            : PublisherBase(std::move(node), std::move(topic)){}
+    public:
+        Publisher(const std::string& topic, Node* node)
+            : PublisherBase(getTopic(node), node) { }
 
 		~Publisher() = default;
 
@@ -33,10 +37,10 @@ namespace lux::communication::intraprocess
 
         // Publish a message with in-place construction
         template <class... Args>
-        void emplacePublish(Args&&... args)
+        void emplace(Args&&... args)
         {
             auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
-            topic().publish(std::move(ptr));
+            topicAs<Topic<T>>().publish(std::move(ptr));
         }
 
         // Send message, perfect forwarding
@@ -44,19 +48,13 @@ namespace lux::communication::intraprocess
         void publish(U&& msg)
         {
             auto ptr = std::make_shared<T>(std::forward<U>(msg));
-            topic().publish(std::move(ptr));
+            topicAs<Topic<T>>().publish(std::move(ptr));
         }
 
-    private:
-
-		Topic<T>& topic()
-		{
-			return static_cast<Topic<T>&>(PublisherBase::topic());
-		}
-
-		const Topic<T>& topic() const
-		{
-			return static_cast<const Topic<T>&>(PublisherBase::topic());
-		}
+        template<typename U>
+        void publish(std::shared_ptr<U> msg)
+        {
+            topicAs<Topic<T>>().publish(std::move(msg));
+        }
     };
 }

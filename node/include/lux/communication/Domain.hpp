@@ -10,22 +10,25 @@
 #include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/cxx/container/SparseSet.hpp>
 #include <lux/communication/visibility.h>
-#include <lux/communication/ITopicHolder.hpp>
 
 namespace lux::communication
 {
+    class TopicBase;
     class LUX_COMMUNICATION_PUBLIC Domain
     {
     public:
-        explicit Domain(int domainId);
+        explicit Domain(size_t id);
 
-        int getDomainId() const;
+        size_t id() const
+        {
+            return id_;
+        }
 
         /**
          * @brief Create or get a Topic of type T with the specified name
          */
 		template <typename TopicType, typename T, typename... Args>
-        requires std::is_base_of_v<ITopicHolder, TopicType>
+        requires std::is_base_of_v<TopicBase, TopicType>
         std::shared_ptr<TopicType> createOrGetTopic(const std::string &topicName, Args&&... args)
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -55,13 +58,19 @@ namespace lux::communication
         /**
          * @brief When the reference count of Topic<T> reaches zero, notify the Domain to remove it
          */
-        void removeTopic(ITopicHolder* topicPtr);
+        void removeTopic(TopicBase* topicPtr);
+
+        static inline Domain& default_domain()
+        {
+            static Domain default_domain_instance{ 0 };
+            return default_domain_instance;
+        }
 
     private:
-        int domain_id_;
+        size_t id_;
 
         // Store all Topics
-        lux::cxx::AutoSparseSet<std::weak_ptr<ITopicHolder>> topics_;
+        lux::cxx::AutoSparseSet<std::weak_ptr<TopicBase>> topics_;
 
         using topic_key_t = std::pair<std::string, lux::cxx::basic_type_info>;
 
@@ -90,10 +99,4 @@ namespace lux::communication
 
         mutable std::mutex mutex_; // Protects the above containers
     };
-
-    inline std::shared_ptr<Domain> default_domain()
-    {
-		static auto default_domain_instance = std::make_shared<Domain>(0);
-		return default_domain_instance;
-    }
 }

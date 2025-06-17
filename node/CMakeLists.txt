@@ -4,12 +4,10 @@ find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time)
 
 set(LUX_COMMUNICATION_NODE_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/src/intraprocess/Node.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/intraprocess/ITopicHolder.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/Node.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/utils.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/Domain.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/CallbackGroup.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/Executor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/TopicBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/CallbackGroupBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/ExecutorBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/NodeBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/PublisherBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/SubscriberBase.cpp

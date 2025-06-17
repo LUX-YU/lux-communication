@@ -1,18 +1,16 @@
 #include "lux/communication/Domain.hpp"
+#include "lux/communication/TopicBase.hpp"
 
 namespace lux::communication {
 
-    Domain::Domain(int domainId)
-        : domain_id_(domainId) {}
+    Domain::Domain(size_t id)
+        : id_(id) {}
     
-    int Domain::getDomainId() const {
-        return domain_id_;
-    }
     
-    void Domain::removeTopic(ITopicHolder* topic_ptr)
+    void Domain::removeTopic(TopicBase* topic_ptr)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!topics_.contains(topic_ptr->index()))
+        if (!topics_.contains(topic_ptr->idInDoamin()))
         {
             return;
         }
@@ -23,6 +21,7 @@ namespace lux::communication {
         );
 
         topic_index_map_.erase(key);
-		topics_.erase(topic_ptr->index());
+		topics_.erase(topic_ptr->idInDoamin());
+        topic_ptr->setIdInDoamin(std::numeric_limits<size_t>::max());
     }
 } // namespace lux::communication

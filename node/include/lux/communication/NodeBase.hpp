@@ -1,13 +1,13 @@
 #pragma once
 #include <memory>
 #include <mutex>
-#include "CallbackGroup.hpp"
 #include <lux/cxx/container/SparseSet.hpp>
 #include <lux/communication/visibility.h>
 
 namespace lux::communication
 {
 	class Domain;
+	class CallbackGroupBase;
 	class PublisherBase;
 	class SubscriberBase;
 
@@ -15,77 +15,99 @@ namespace lux::communication
 	{
 		friend class PublisherBase;
 		friend class SubscriberBase;
-		friend class CallbackGroup;
-		friend class Executor;
+		friend class CallbackGroupBase;
+		friend class ExecutorBase;
 	public:
-		NodeBase(const std::string&, std::shared_ptr<Domain> domain);
+		NodeBase(const std::string& name, Domain& domain);
 
 		~NodeBase();
 
 		const std::string& name();
-
 		const Domain& domain() const;
-		const std::vector<std::weak_ptr<CallbackGroup>>& callbackGroups() const;
+
+		template<typename Func>
+		void foreachSubscriber(Func&& func)
+		{
+			std::vector<SubscriberBase*> sub_buffers;
+			{
+				std::scoped_lock lck(mutex_sub_);
+				sub_buffers = subscribers_.values();
+			}
+
+			for (auto sub : sub_buffers)
+			{
+				func(sub);
+			}
+		}
+
+		template<typename Func>
+		void foreachPublisher(Func&& func)
+		{
+			std::vector<PublisherBase*> pub_buffers;
+			{
+				std::scoped_lock lck(mutex_pub_);
+				pub_buffers = publishers_.values();
+			}
+
+			for (auto pub : pub_buffers)
+			{
+				func(pub);
+			}
+		}
+
+		template<typename Func>
+		void foreachCallbackGroup(Func&& func)
+		{
+			std::vector<CallbackGroupBase*> cbg_buffers;
+			{
+				std::scoped_lock lck(mutex_callback_groups_);
+				cbg_buffers = callback_groups_.values();
+			}
+
+			for (auto cbg : cbg_buffers)
+			{
+				func(cbg);
+			}
+		}
+
+		size_t idInExecutor() const
+		{
+			return id_in_executor_;
+		}
 
 	protected:
 		Domain& domain();
 
-		void addCallbackGroup(std::shared_ptr<CallbackGroup> callback_group);
-		void addPublisher(std::shared_ptr<PublisherBase>);
-		void addSubscriber(std::shared_ptr<SubscriberBase>);
+		void addCallbackGroup(CallbackGroupBase*);
+		void addPublisher(PublisherBase*);
+		void addSubscriber(SubscriberBase*);
 
-		void removePublisher(size_t pub_id);
-		void removeSubscriber(size_t sub_id);
-		void removeCallbackGroup(size_t g_id);
+		void removeCallbackGroup(CallbackGroupBase*);
+		void removePublisher(PublisherBase*);
+		void removeSubscriber(SubscriberBase*);
+
+		void setIdInExecutor(size_t id)
+		{
+			id_in_executor_ = id;
+		}
 
 	private:
 		std::string node_name_;
 
-		using CallbackGroupList = lux::cxx::AutoSparseSet<std::weak_ptr<CallbackGroup>>;
-		using PubSet = lux::cxx::AutoSparseSet<std::weak_ptr<PublisherBase>>;
-		using SubSet = lux::cxx::AutoSparseSet<std::weak_ptr<SubscriberBase>>;
+		using CallbackGroupList = lux::cxx::AutoSparseSet<CallbackGroupBase*>;
+		using PubSet = lux::cxx::AutoSparseSet<PublisherBase*>;
+		using SubSet = lux::cxx::AutoSparseSet<SubscriberBase*>;
 		
+		mutable std::mutex		mutex_callback_groups_;
 		mutable std::mutex		mutex_pub_;
 		mutable std::mutex		mutex_sub_;
-		mutable std::mutex		mutex_callback_groups_;
 
 		PubSet					publishers_;
 		SubSet					subscribers_;
 		CallbackGroupList		callback_groups_;
 		
-		std::shared_ptr<Domain>	domain_;
+		Domain&					domain_;
 
-	protected:
-		std::shared_ptr<CallbackGroup> default_callback_group_;
-	};
-
-	template<typename Derived>
-	class TNodeBase : public NodeBase
-	{
-	public:
-		using NodeBase::NodeBase;
-
-		std::shared_ptr<CallbackGroup> createCallbackGroup(CallbackGroupType type)
-		{
-			auto self_sptr = static_cast<Derived&>(*this).shared_from_this();
-			auto group = std::make_shared<CallbackGroup>(std::move(self_sptr), type);
-			NodeBase::addCallbackGroup(group);
-			return group;
-		}
-
-		std::shared_ptr<CallbackGroup> default_callback_group()
-		{
-			if (default_callback_group_)
-			{
-				return default_callback_group_;
-			}
-
-			auto self_sptr = static_cast<Derived&>(*this).shared_from_this();
-			default_callback_group_ = std::make_shared<CallbackGroup>(self_sptr);
-
-			NodeBase::addCallbackGroup(default_callback_group_);
-
-			return default_callback_group_;
-		}
+		size_t                  id_in_executor_{std::numeric_limits<size_t>::max()};
 	};
 }

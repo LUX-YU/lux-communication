@@ -2,29 +2,35 @@
 #include <functional>
 #include <memory>
 #include <lux/communication/Queue.hpp>
-#include "Topic.hpp"
 #include <lux/communication/SubscriberBase.hpp>
-#include <lux/communication/CallbackGroup.hpp>
 #include <lux/communication/visibility.h>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
+
+#include "Topic.hpp"
 
 namespace lux::communication::intraprocess
 {
     class Node; // Forward declaration
     template <typename T>
-	class Subscriber : public lux::communication::TSubscriberBase<T>
+	class Subscriber : public lux::communication::SubscriberBase
     {
-    public:
-		using Parent   = lux::communication::TSubscriberBase<T>;
-        using Callback = std::function<void(const T &)>;
-
-        friend class Node; // or friend class Node (depending on design)
-
-        Subscriber(std::shared_ptr<Node> node, std::shared_ptr<Topic<T>> topic, Callback callback, CallbackGroupSptr group)
-            : TSubscriberBase<T>(std::move(node), std::move(topic), std::move(callback), std::move(group))
+        static TopicSptr getTopic(NodeBase* node)
         {
-            Subscriber::topic().addSubscriber(this);
+            return node->domain().createOrGetTopic<Topic<T>, T>();
         }
+
+        static CallbackGroupBase getCallbackGroup(CallbackGroupBase* cgb, NodeBase* node)
+        {
+            return cgb == nullptr ? node->defaultCallbackGroup() : cgb;
+        }
+
+    public:
+        using Callback = std::function<void(const message_t<T>)>;
+
+        template<typename Func>
+        Subscriber(const std::string& topic, Node* node, Func&& func, CallbackGroupBase* cgb = nullptr)
+            :   SubscriberBase(getTopic(node), node, getCallbackGroup(cgb, node)), callback_func_(std::forward<Func>(func))
+        {}
 
         ~Subscriber() override {
             cleanup();
@@ -73,12 +79,8 @@ namespace lux::communication::intraprocess
         }
 
     private:
-		Topic<T>& topic()
-		{
-			return static_cast<Topic<T>&>(SubscriberBase::topic());
-		}
-
-        void cleanup() {
+        void cleanup() 
+        {
 			// Close the queue and join the thread if needed
 			close(queue_);
 			ready_flag_.store(false, std::memory_order_release);
@@ -108,6 +110,7 @@ namespace lux::communication::intraprocess
         }
 
     private:
+        Callback                        callback_func_{ nullptr };
         std::atomic<bool>               ready_flag_{false};
         queue_t<T>                      queue_;
     };

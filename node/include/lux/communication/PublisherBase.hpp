@@ -1,34 +1,54 @@
 #pragma once
 #include <memory>
+#include <string>
 #include <lux/communication/visibility.h>
 
 namespace lux::communication
 {
 	class NodeBase;
-	class ITopicHolder;
-
-	using NodeBaseSptr	  = std::shared_ptr<NodeBase>;
-	using TopicHolderSptr = std::shared_ptr<ITopicHolder>;
+	class TopicBase;
+	using TopicSptr = std::shared_ptr<TopicBase>;
 
 	class LUX_COMMUNICATION_PUBLIC PublisherBase 
-		: public std::enable_shared_from_this<PublisherBase>
 	{
 		friend class NodeBase;
+		friend class TopicBase;
 	public:
-		PublisherBase(NodeBaseSptr, TopicHolderSptr);
-
 		virtual ~PublisherBase();
 
-		size_t id() const;
+		size_t idInNode() const
+		{
+			return id_in_node_;
+		}
 
-		ITopicHolder& topic();
-		const ITopicHolder& topic() const;
+		size_t idInTopic() const
+		{
+			return id_in_topic_;
+		}
+
+		template<typename T>
+		T& topicAs() requires std::is_base_of_v<TopicBase, T>
+		{
+			return static_cast<T&>(*topic_);
+		}
+
+	protected:
+		PublisherBase(TopicSptr topic, NodeBase*);
 
 	private:
-		void setId(size_t id);
+		void setIdInNode(size_t id)
+		{
+			id_in_node_ = id;
+		}
 
-		size_t			id_;
-		TopicHolderSptr topic_;
-		NodeBaseSptr	node_;
+		void setIdInTopic(size_t id)
+		{
+			id_in_topic_ = id;
+		}
+
+		NodeBase*		node_;
+		TopicSptr		topic_;
+		size_t			id_in_node_{std::numeric_limits<size_t>::max()};
+		size_t          id_in_topic_{std::numeric_limits<size_t>::max()};
 	};
 }

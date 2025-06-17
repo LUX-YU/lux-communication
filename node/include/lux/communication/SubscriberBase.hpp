@@ -1,19 +1,18 @@
 #pragma once
-#include <functional>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
+#include <functional>
 #include <lux/communication/visibility.h>
 
 namespace lux::communication
 {
-	class ITopicHolder;
-	class CallbackGroup;
     class NodeBase;
+	class TopicBase;
+	class CallbackGroupBase;
 
-    using TopicHolderSptr   = std::shared_ptr<ITopicHolder>;
-    using CallbackGroupSptr = std::shared_ptr<CallbackGroup>;
-    using NodeBaseSptr      = std::shared_ptr<NodeBase>;
+    using TopicSptr = std::shared_ptr<TopicBase>;
 
     struct TimeExecEntry
     {
@@ -23,14 +22,13 @@ namespace lux::communication
         bool operator<(const TimeExecEntry& rhs) const;
     };
 
-	class LUX_COMMUNICATION_PUBLIC SubscriberBase 
-        : public std::enable_shared_from_this<SubscriberBase>
+	class LUX_COMMUNICATION_PUBLIC SubscriberBase
     {
         friend class TimeOrderedExecutor;
         friend class NodeBase;
+        friend class TopicBase;
+        friend class CallbackGroupBase;
     public:
-        SubscriberBase(NodeBaseSptr, TopicHolderSptr, CallbackGroupSptr);
-
         virtual ~SubscriberBase();
 
         virtual void takeAll() = 0;
@@ -38,23 +36,53 @@ namespace lux::communication
         virtual bool setReadyIfNot() = 0;
         virtual void clearReady() = 0;
 
-        size_t id() const;
+        size_t idInNode() const
+        {
+            return id_in_node_;
+        }
 
-        ITopicHolder& topic();
-        const ITopicHolder& topic() const;
+        size_t idInCallbackGroup() const
+        {
+            return id_in_callback_group_;
+        }
 
-        CallbackGroup& callbackGroup();
-        const CallbackGroup& callbackGroup() const;
+        size_t idInTopic() const
+        {
+            return id_in_topic_;
+        }
+
+        template<typename T>
+        T& topicAs() requires std::is_base_of_v<TopicBase, T>
+        {
+            return static_cast<T&>(*topic_);
+        }
+
+    protected:
+        SubscriberBase(TopicSptr topic, NodeBase* node, CallbackGroupBase* cgb);
 
     private:
-        virtual void drainAll(std::vector<TimeExecEntry>& out) = 0;
 
-        void setId(size_t id);
+        void setIdInNode(size_t id)
+        {
+            id_in_node_ = id;
+        }
 
-        size_t              id_{0};
-        TopicHolderSptr     topic_;
-        CallbackGroupSptr   callback_group_;
-		NodeBaseSptr	    node_;
+        void setIdIInCallbackGroup(size_t id)
+        {
+            id_in_callback_group_ = id;
+        }
+
+        void setIdInTopic(size_t id)
+        {
+            id_in_topic_ = id;
+        }
+
+        size_t                      id_in_node_{std::numeric_limits<size_t>::max()};
+        size_t                      id_in_callback_group_{std::numeric_limits<size_t>::max()};
+        size_t                      id_in_topic_{std::numeric_limits<size_t>::max()};
+        std::shared_ptr<TopicBase>  topic_;
+        NodeBase*                   node_;
+        CallbackGroupBase*          callback_group_;
     };
 
     template<typename T>
