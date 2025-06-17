@@ -3,6 +3,7 @@
 #include <mutex>
 #include <lux/cxx/container/SparseSet.hpp>
 #include <lux/communication/visibility.h>
+#include <lux/communication/ExecutorBase.hpp>
 
 namespace lux::communication
 {
