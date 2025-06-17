@@ -16,4 +16,12 @@ namespace lux::communication::intraprocess {
     {
         return default_callbackgroup_.get();
     }
+
+    void spin(Node* node)
+    {
+        static SingleThreadedExecutor default_executor;
+        default_executor.addNode(node);
+        default_executor.spin();
+        default_executor.removeNode(node);
+    }
 } // namespace lux::communication::intraprocess

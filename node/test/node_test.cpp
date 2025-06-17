@@ -49,14 +49,14 @@ static void testDomainIsolation()
 	// Create a publisher in domain1
 	auto pub_a = std::make_shared<lux::communication::intraprocess::Publisher<StringMsg>>("chatter", &node_a);
 
-        // Subscribe to the same "chatter" in domain2
-        auto sub_b = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
-                "chatter", &node_b,
-                [&](const std::shared_ptr<StringMsg> msg) {
-                        // Getting here means NodeB received a message
-                        ++b_received_count;
-                }
-        );
+	// Subscribe to the same "chatter" in domain2
+	auto sub_b = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
+		"chatter", &node_b,
+		[&](const std::shared_ptr<StringMsg> msg) {
+			// Getting here means NodeB received a message
+			++b_received_count;
+		}
+	);
 
 	// Executor running nodeB
 	auto exec_b = std::make_shared<lux::communication::SingleThreadedExecutor>();
@@ -114,7 +114,7 @@ static void testSingleDomainMultiNode()
 			[&](const std::shared_ptr<StringMsg> msg) {
 				// Message received
 				++sub_count;
-                        std::cout << "[NodeB] got: " << msg->text << "\n";
+				std::cout << "[NodeB] got: " << msg->text << "\n";
 			}
 		);
 
@@ -128,7 +128,8 @@ static void testSingleDomainMultiNode()
 		// Publish messages
 		for (int i = 0; i < 5; ++i) {
 			pub->publish(StringMsg{ "Hello " + std::to_string(i) });
-			std::this_thread::sleep_for(std::chrono::milliseconds(50));		}
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+		}
 
 		// Stop
 		exec_b->stop();
@@ -174,7 +175,7 @@ static void testMultiSubscriber()
 	auto sub_chat_1 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>("chat", &node_b,
 		[&](const std::shared_ptr<StringMsg> msg) {
 			chat_count_1++;
-                std::cout << "[subChat1] got text: " << msg->text << "\n";
+			std::cout << "[subChat1] got text: " << msg->text << "\n";
 		});
 
 	// NodeB: subscriber2 -> topic "chat" (second subscriber)
@@ -182,17 +183,17 @@ static void testMultiSubscriber()
 	auto sub_chat_2 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>("chat", &node_b,
 		[&](const std::shared_ptr<StringMsg> msg) {
 			chat_count_2++;
-                std::cout << "[subChat2] also got text: " << msg->text << "\n";
+			std::cout << "[subChat2] also got text: " << msg->text << "\n";
 		}
 	);
 
 	// NodeB: subscriberData -> topic "data"
 	std::atomic<int> data_count{ 0 };
-        auto sub_data = std::make_shared<lux::communication::intraprocess::Subscriber<ComplexMsg>>("data", &node_b,
-                [&](const std::shared_ptr<ComplexMsg> m) {
-                        data_count++;
-                        std::cout << "[subData] got size=" << m->data.size()
-                                << " id=" << m->id << "\n";
+	auto sub_data = std::make_shared<lux::communication::intraprocess::Subscriber<ComplexMsg>>("data", &node_b,
+		[&](const std::shared_ptr<ComplexMsg> m) {
+			data_count++;
+			std::cout << "[subData] got size=" << m->data.size()
+				<< " id=" << m->id << "\n";
 		}
 	);
 
@@ -246,7 +247,7 @@ static void testZeroCopyCheck()
 	auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>("nocopy", &node, [&](const std::shared_ptr<StringMsg> msg) {
 		last_ptr.store(static_cast<const void*>(&msg), std::memory_order_relaxed);
 		std::cout << "[Subscriber] address=" << &msg
-                        << " text=" << msg->text << "\n";
+			<< " text=" << msg->text << "\n";
 		});
 
 	// Publisher
@@ -295,27 +296,32 @@ static void testPerformanceSinglePubSub(int message_count = 100000)
 	std::atomic<int> recv_count{ 0 };
 
 	// Subscriber
-	auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>("perf_topic", &node, [&](const std::shared_ptr<StringMsg> msg) {
-		recv_count++;
+	auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<double>>(
+		"perf_topic", &node,
+		[&](const std::shared_ptr<double> msg) {
+			recv_count++;
 		}
 	);
 
 	// Publisher
-	auto pub = std::make_shared<lux::communication::intraprocess::Publisher<StringMsg>>("perf_topic", &node);
+	auto pub = std::make_shared<lux::communication::intraprocess::Publisher<double>>(
+		"perf_topic", &node
+	);
 
 	// Executor
 	auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
 	exec->addNode(&node);
 
 	std::thread spin_th([&] {
-		exec->spin();
-		});
+			exec->spin();
+		}
+	);
 
 	// start time
 	auto t1 = std::chrono::steady_clock::now();
 	// Publish N messages
 	for (int i = 0; i < message_count; ++i) {
-                pub->emplace("some text");
+		pub->emplace((double)1.0);
 	}
 
 	// Wait for all messages
@@ -354,11 +360,12 @@ static void testPerformanceMultiSubscriber(int subscriber_count = 5, int message
 	}
 
 	// Create N subscribers
-	std::vector<std::shared_ptr<Subscriber<StringMsg>>> subs;
+	std::vector<std::shared_ptr<Subscriber<double>>> subs;
 	subs.reserve(subscriber_count);
 	for (int i = 0; i < subscriber_count; ++i) {
-		auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>("multi_perf", &node,
-			[&, i](const std::shared_ptr<StringMsg> msg) {
+		auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<double>>(
+			"multi_perf", &node,
+			[&, i](const std::shared_ptr<double> msg) {
 				counters[i].fetch_add(1, std::memory_order_relaxed);
 			}
 		);
@@ -366,7 +373,9 @@ static void testPerformanceMultiSubscriber(int subscriber_count = 5, int message
 	}
 
 	// Publisher
-	auto pub = std::make_shared<lux::communication::intraprocess::Publisher<StringMsg>>("multi_perf", &node);
+	auto pub = std::make_shared<lux::communication::intraprocess::Publisher<double>>(
+		"multi_perf", &node
+	);
 
 	// Executor
 	auto exec = std::make_shared<lux::communication::SingleThreadedExecutor>();
@@ -377,7 +386,7 @@ static void testPerformanceMultiSubscriber(int subscriber_count = 5, int message
 	auto t1 = std::chrono::steady_clock::now();
 	// Publish messageCount messages
 	for (int i = 0; i < message_count; ++i) {
-                pub->emplace("hello");
+		pub->emplace((double)1.0);
 	}
 
 	// Wait until all subscribers receive all messages
@@ -434,11 +443,11 @@ static void testLatencySinglePubSub(int message_count = 1000)
 	std::atomic<int> write_index{ 0 };
 
 	// 3) Subscriber callback
-        auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<TimeStampedMsg>>("latency_topic", &node,
-                [&](const std::shared_ptr<TimeStampedMsg> msg)
-                {
-                        auto now = std::chrono::steady_clock::now();
-                        auto delta = std::chrono::duration_cast<std::chrono::microseconds>(now - msg->send_time).count();
+	auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<TimeStampedMsg>>("latency_topic", &node,
+		[&](const std::shared_ptr<TimeStampedMsg> msg)
+		{
+			auto now   = std::chrono::high_resolution_clock::now();
+			auto delta = std::chrono::duration_cast<std::chrono::microseconds>(now - msg->send_time).count();
 
 			// Atomically get a write slot
 			int i = write_index.fetch_add(1, std::memory_order_relaxed);
@@ -456,24 +465,25 @@ static void testLatencySinglePubSub(int message_count = 1000)
 	exec->addNode(&node);
 
 	std::thread spin_th([&] {
-		exec->spin();
-		});
-	// 6) Publish N messages
+			exec->spin();
+		}
+	);
+
+	// wait for spin thread
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 	for (int i = 0; i < message_count; ++i)
 	{
 		TimeStampedMsg msg;
-		msg.send_time = std::chrono::steady_clock::now();
-		msg.payload = std::format("test {}", i); // C++20 format
+		msg.send_time = std::chrono::high_resolution_clock::now();
+		msg.payload   = std::format("test {}", i); // C++20 format
 
 		pub->publish(std::move(msg));
-
-		// std::this_thread::sleep_for(std::chrono::microseconds(100));
 	}
 
 	// 7) Wait until all messages are consumed
-	while (write_index.load(std::memory_order_acquire) < message_count)
+	while (write_index.load() < message_count)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::sleep_for(std::chrono::seconds(0));
 	}
 
 	// 8) Compute latency statistics
@@ -486,7 +496,8 @@ static void testLatencySinglePubSub(int message_count = 1000)
 	for (auto& d : latencies) {
 		sum += d;
 		if (d < min_v) min_v = d;
-		if (d > max_v) max_v = d;	}
+		if (d > max_v) max_v = d;
+	}
 	double avg = (double)sum / (double)message_count;
 
 	std::cout << "[LatencyTest-noLock] " << message_count << " msgs:\n"
@@ -582,11 +593,11 @@ static void testMultiThreadedExecutorWithCallbackGroups(int thread_count = 4, in
 	std::cout << "\n=== testMultiThreadedExecutorWithCallbackGroups ===\n";
 
 	Domain domain(1);
-        Node node("NodeWithGroups", domain);
+	Node node("NodeWithGroups", domain);
 
-        // 1) Create two callback groups: Reentrant and MutuallyExclusive
-        lux::communication::CallbackGroupBase group_r(&node, lux::communication::CallbackGroupType::Reentrant);
-        lux::communication::CallbackGroupBase group_m(&node, lux::communication::CallbackGroupType::MutuallyExclusive);
+	// 1) Create two callback groups: Reentrant and MutuallyExclusive
+	lux::communication::CallbackGroupBase group_r(&node, lux::communication::CallbackGroupType::Reentrant);
+	lux::communication::CallbackGroupBase group_m(&node, lux::communication::CallbackGroupType::MutuallyExclusive);
 
 	// 2) Prepare concurrency tracking data
 	//    - active and peak counts for each group
@@ -597,8 +608,8 @@ static void testMultiThreadedExecutorWithCallbackGroups(int thread_count = 4, in
 	GroupStats stats_r, stats_m;
 
 	// Helper: increment active_count at start, decrement at end, update peak
-        auto makeCallback = [&](GroupStats& st, std::string name) {
-                return [&, name](const std::shared_ptr<StringMsg> msg) {
+	auto makeCallback = [&](GroupStats& st, std::string name) {
+		return [&, name](const std::shared_ptr<StringMsg> msg) {
 			int val = st.active_count.fetch_add(1, std::memory_order_acq_rel) + 1;
 			// update peak
 			int old_peak = st.peak_count.load(std::memory_order_relaxed);
@@ -615,20 +626,20 @@ static void testMultiThreadedExecutorWithCallbackGroups(int thread_count = 4, in
 		};
 
 	// 3) Create two subscribers in the Reentrant group
-        auto sub_r1 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
-                "group_topic", &node, makeCallback(stats_r, "R1"), &group_r
-        );
-        auto sub_r2 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
-                "group_topic", &node, makeCallback(stats_r, "R2"), &group_r
-        );
+	auto sub_r1 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
+		"group_topic", &node, makeCallback(stats_r, "R1"), &group_r
+	);
+	auto sub_r2 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
+		"group_topic", &node, makeCallback(stats_r, "R2"), &group_r
+	);
 
 	// 4) Create two subscribers in the MutuallyExclusive group
-        auto sub_m1 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
-                "group_topic", &node, makeCallback(stats_m, "M1"), &group_m
-        );
-        auto sub_m2 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
-                "group_topic", &node, makeCallback(stats_m, "M2"), &group_m
-        );
+	auto sub_m1 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
+		"group_topic", &node, makeCallback(stats_m, "M1"), &group_m
+	);
+	auto sub_m2 = std::make_shared<lux::communication::intraprocess::Subscriber<StringMsg>>(
+		"group_topic", &node, makeCallback(stats_m, "M2"), &group_m
+	);
 
 	// 5) Create Publisher
 	auto pub = std::make_shared<lux::communication::intraprocess::Publisher<StringMsg>>("group_topic", &node);
@@ -641,13 +652,13 @@ static void testMultiThreadedExecutorWithCallbackGroups(int thread_count = 4, in
 
 	// 7) Start spinning
 	std::thread spin_th([&] {
-			exec->spin();
+		exec->spin();
 		}
 	);
 
 	// 8) Publish some messages
 	for (int i = 0; i < 10; ++i) {
-                pub->emplace(std::format("Msg # {}", i));
+		pub->emplace(std::format("Msg # {}", i));
 	}
 
 	// 9) Wait a bit for callbacks to complete
@@ -688,7 +699,7 @@ struct LargeMsg
 };
 
 // Performance test: large message throughput
-void testPerformanceLargeMessage(int message_count = 1000, size_t size = 1024 * 1024)
+static void testPerformanceLargeMessage(int message_count = 1000, size_t size = 1024 * 1024)
 {
 	using namespace lux::communication::intraprocess;
 
@@ -699,8 +710,8 @@ void testPerformanceLargeMessage(int message_count = 1000, size_t size = 1024 * 
 
 	std::atomic<int> recv{ 0 };
 
-        auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<LargeMsg>>("big_topic", &node, [&](const std::shared_ptr<LargeMsg> m) {
-                (void)m;
+	auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<LargeMsg>>("big_topic", &node, [&](const std::shared_ptr<LargeMsg> m) {
+		(void)m;
 		recv.fetch_add(1, std::memory_order_relaxed);
 		});
 
@@ -714,7 +725,7 @@ void testPerformanceLargeMessage(int message_count = 1000, size_t size = 1024 * 
 	LargeMsg msg; msg.data.resize(size);
 	auto t1 = std::chrono::steady_clock::now();
 	for (int i = 0; i < message_count; ++i) {
-                pub->publish(msg);
+		pub->publish(msg);
 	}
 
 	while (recv.load(std::memory_order_acquire) < message_count) {
@@ -732,7 +743,7 @@ void testPerformanceLargeMessage(int message_count = 1000, size_t size = 1024 * 
 }
 
 // Thread lifecycle safety test
-void testThreadLifecycleSafety()
+static void testThreadLifecycleSafety()
 {
 	using namespace lux::communication::intraprocess;
 
@@ -799,8 +810,8 @@ static void testMemoryLeakCheck(int message_count = 1000)
 	Node node("MemNode", domain);
 
 	std::atomic<int> recv{ 0 };
-        auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<CountingMsg>>("mem_topic", &node, [&](const std::shared_ptr<CountingMsg> m) {
-                (void)m; recv.fetch_add(1, std::memory_order_relaxed); });
+	auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<CountingMsg>>("mem_topic", &node, [&](const std::shared_ptr<CountingMsg> m) {
+		(void)m; recv.fetch_add(1, std::memory_order_relaxed); });
 
 	auto pub = std::make_shared<lux::communication::intraprocess::Publisher<CountingMsg>>("mem_topic", &node);
 
@@ -819,8 +830,8 @@ static void testMemoryLeakCheck(int message_count = 1000)
 
 	exec->stop();
 	spin_th.join();
-        sub.reset();
-        pub.reset();
+	sub.reset();
+	pub.reset();
 
 	if (CountingMsg::live_count.load() == 0) {
 		std::cout << "[OK] no message leak detected.\n";
@@ -843,8 +854,7 @@ int main()
 	// 2. Performance tests
 	testPerformanceSinglePubSub(10000000);       // 10000k messages
 	testPerformanceMultiSubscriber(5, 5000000);  // 5 subscribers, 5000k messages
-
-	testLatencySinglePubSub(1e5); // example run
+	testLatencySinglePubSub(1e3); // example run
 	testMultiThreadedExecutorBasic(/*thread_count*/ 4, /*message_count*/ 50000);
 	testMultiThreadedExecutorWithCallbackGroups(/*thread_count*/ 4, /*message_count*/ 10000);
 

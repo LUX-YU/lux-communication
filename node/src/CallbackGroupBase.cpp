@@ -22,14 +22,11 @@ namespace lux::communication {
 
     void CallbackGroupBase::notify(SubscriberBase* sub)
     {
-        if (!sub->setReadyIfNot())
-        {
-            return;
-        }
-
-        auto executor = sub->callbackGroup()->executor();
-        if (executor) {
-            executor->enqueueReady(sub);
+        // fast-path: if flag was clear, set it and enqueue once
+        if (!sub->ready_flag_.test_and_set(std::memory_order_acquire)) {
+            if (auto ex = executor_) {
+                ex->enqueueReady(sub);
+            }
         }
     }
 

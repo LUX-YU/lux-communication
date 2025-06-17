@@ -28,8 +28,6 @@ namespace lux::communication
 
         virtual void takeAll() = 0;
 
-        virtual bool setReadyIfNot() = 0;
-        virtual void clearReady() = 0;
         virtual void drainAll(std::vector<TimeExecEntry>& out) = 0;
 
         size_t idInNode() const
@@ -66,6 +64,11 @@ namespace lux::communication
     protected:
         SubscriberBase(TopicSptr topic, NodeBase* node, CallbackGroupBase* cgb);
 
+        void clearReady()
+        {
+            ready_flag_.clear(std::memory_order_release);
+        }
+
     private:
 
         void setIdInNode(size_t id)
@@ -83,11 +86,12 @@ namespace lux::communication
             id_in_topic_ = id;
         }
 
-        size_t                      id_in_node_{std::numeric_limits<size_t>::max()};
-        size_t                      id_in_callback_group_{std::numeric_limits<size_t>::max()};
-        size_t                      id_in_topic_{std::numeric_limits<size_t>::max()};
-        std::shared_ptr<TopicBase>  topic_;
-        NodeBase*                   node_;
-        CallbackGroupBase*          callback_group_;
+        size_t                          id_in_node_{std::numeric_limits<size_t>::max()};
+        size_t                          id_in_callback_group_{std::numeric_limits<size_t>::max()};
+        size_t                          id_in_topic_{std::numeric_limits<size_t>::max()};
+        alignas(64) std::atomic_flag    ready_flag_ = ATOMIC_FLAG_INIT;
+        std::shared_ptr<TopicBase>      topic_;
+        NodeBase*                       node_;
+        CallbackGroupBase*              callback_group_;
     };
 }

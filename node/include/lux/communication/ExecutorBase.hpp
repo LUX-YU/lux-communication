@@ -34,22 +34,60 @@ namespace lux::communication {
 		virtual void removeNode(NodeBase* node);
 
 		virtual void spinSome() = 0;
-		virtual void spin();
-		virtual void stop();
-		virtual void wakeup();
-
-		SubscriberBase* waitOneReady();
-		void enqueueReady(SubscriberBase* sub);
 		virtual void handleSubscriber(SubscriberBase* sub) = 0;
+
+		virtual void spin()
+		{
+			if (!spinning_) {
+				spinning_ = true;
+			}
+
+			while (spinning_)
+			{
+				auto sub = waitOneReady();
+				if (!spinning_)
+					break;
+				if (sub)
+				{
+					handleSubscriber(sub);
+				}
+			}
+		}
+		
+		virtual void stop()
+		{
+			if (spinning_.exchange(false))
+			{
+				ready_sem_.release();
+				notifyCondition();
+			}
+		}
+
+		void wakeup()
+		{
+			ready_sem_.release();
+		}
+
+		SubscriberBase* waitOneReady()
+		{
+			ready_sem_.acquire();
+			SubscriberBase* sub;
+			ready_queue_.try_dequeue(sub);
+			return sub;
+		}
+
+		void enqueueReady(SubscriberBase* sub)
+		{
+			ready_queue_.enqueue(std::move(sub));
+			ready_sem_.release();
+		}
 
 	protected:
 		using NodeList = lux::cxx::AutoSparseSet<NodeBase*>;
-
-		NodeList		nodes_;
-		std::mutex		nodes_mutex_;
-
 		using ReadyQueue = moodycamel::ConcurrentQueue<SubscriberBase*>;
 
+		NodeList							nodes_;
+		std::mutex							nodes_mutex_;
 		ReadyQueue							ready_queue_;
 		std::counting_semaphore<INT_MAX>	ready_sem_{ 0 };
 
@@ -58,7 +96,7 @@ namespace lux::communication {
 		void			notifyCondition();
 		virtual bool	checkRunnable();
 
-		std::atomic<bool>						running_;
+		std::atomic<bool>						spinning_;
 		std::mutex								cv_mutex_;
 		std::condition_variable					cv_;
 	};

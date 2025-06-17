@@ -8,33 +8,33 @@ namespace lux::communication::builtin_msgs
 
 namespace lux::communication::builtin_msgs::sensor_msgs
 {
-	class ImageS
+	class LUX_COMMUNICATION_PUBLIC ImageS
 	{
 	public:
 		friend class ::lux::communication::builtin_msgs::pb_st_converter;
-		LUX_COMMUNICATION_PUBLIC ImageS();
-		LUX_COMMUNICATION_PUBLIC explicit ImageS(const char* path);
+		ImageS();
+		explicit ImageS(const char* path);
 		// copy
-		LUX_COMMUNICATION_PUBLIC ImageS(int width, int height, int channels, const void* data);
-		LUX_COMMUNICATION_PUBLIC ImageS(const ImageS&);
-		LUX_COMMUNICATION_PUBLIC ImageS& operator=(const ImageS&);
-		LUX_COMMUNICATION_PUBLIC ImageS(ImageS&&) noexcept;
-		LUX_COMMUNICATION_PUBLIC ImageS& operator=(ImageS&&) noexcept;
-		LUX_COMMUNICATION_PUBLIC ~ImageS();
+		ImageS(int width, int height, int channels, const void* data);
+		ImageS(const ImageS&);
+		ImageS& operator=(const ImageS&);
+		ImageS(ImageS&&) noexcept;
+		ImageS& operator=(ImageS&&) noexcept;
+		~ImageS();
 
-		LUX_COMMUNICATION_PUBLIC bool load(const char* path);
-		LUX_COMMUNICATION_PUBLIC bool isLoaded() const;
+		bool load(const char* path);
+		bool isLoaded() const;
 
-		LUX_COMMUNICATION_PUBLIC int width() const;
-		LUX_COMMUNICATION_PUBLIC int height() const;
-		LUX_COMMUNICATION_PUBLIC int channels() const;
-		LUX_COMMUNICATION_PUBLIC const void* data() const;
-		LUX_COMMUNICATION_PUBLIC void* data();
+		int width() const;
+		int height() const;
+		int channels() const;
+		const void* data() const;
+		void* data();
 
 	private:
-		int		_width;
-		int		_height;
-		int		_channels;
-		void*	_data;
+		int		_width{ 0 };
+		int		_height{ 0 };
+		int		_channels{ 0 };
+		void*	_data{ nullptr };
 	};
 }

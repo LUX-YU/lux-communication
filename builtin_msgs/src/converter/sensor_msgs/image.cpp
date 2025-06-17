@@ -7,13 +7,7 @@
 
 namespace lux::communication::builtin_msgs::sensor_msgs
 {
-	ImageS::ImageS()
-	{
-		_width = 0;
-		_height = 0;
-		_channels = 0;
-		_data = nullptr;
-	}
+	ImageS::ImageS(){}
 
 	ImageS::ImageS(const char* path)
 	{

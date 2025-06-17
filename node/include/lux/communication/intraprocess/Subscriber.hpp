@@ -65,23 +65,12 @@ namespace lux::communication::intraprocess
                 callback_func_(msg);
             }
 
+            // if (queue_.size_approx() == 0)
+            //     clearReady();
+            // else
+            //     callbackGroup()->notify(this);
+
             clearReady();
-        }
-
-        bool setReadyIfNot() override
-        {
-            bool expected = false;
-            // If originally false, set to true and return true
-            // If already true, return false
-            return ready_flag_.compare_exchange_strong(
-                expected, true,
-                std::memory_order_acq_rel, std::memory_order_acquire
-            );
-        }
-
-        void clearReady() override
-        {
-            ready_flag_.store(false, std::memory_order_release);
         }
 
     private:
@@ -89,7 +78,7 @@ namespace lux::communication::intraprocess
         {
 			// Close the queue and join the thread if needed
 			close(queue_);
-			ready_flag_.store(false, std::memory_order_release);
+            clearReady();
         }
 
         void drainAll(std::vector<TimeExecEntry>& out)
@@ -115,8 +104,7 @@ namespace lux::communication::intraprocess
         }
 
     private:
-        Callback                        callback_func_{ nullptr };
-        std::atomic<bool>               ready_flag_{false};
-        queue_t<T>                      queue_;
+        Callback   callback_func_{ nullptr };
+        queue_t<T> queue_;
     };
 }

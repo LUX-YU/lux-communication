@@ -34,5 +34,7 @@ namespace lux::communication::intraprocess
 
         std::unique_ptr<lux::communication::CallbackGroupBase> default_callbackgroup_;
     };
+
+    LUX_COMMUNICATION_PUBLIC void spin(Node*);
 }
 
