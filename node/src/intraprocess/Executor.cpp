@@ -12,23 +12,32 @@ namespace lux::communication {
         std::lock_guard<std::mutex> lock(callback_groups_mutex_);
         for (auto& g : groups)
         {
-            callback_groups_.push_back(g);
-            g.lock()->setExecutor(shared_from_this());
+            auto group = g.lock();
+            if (!group || callback_groups_.contains(group->execId()))
+            {
+                continue;
+            }
+            group->setExecId(callback_groups_.insert(group));
+            group->setExecutor(shared_from_this());
         }
     }
     
     void Executor::removeNode(std::shared_ptr<NodeBase> node)
     {
         if (!node) return;
-        // const auto& groups = node->callbackGroups();
-        // std::lock_guard<std::mutex> lock(callback_groups_mutex_);
-		// auto iter = std::find(
-        //     callback_groups_.begin(), 
-        //     callback_groups_.end(), 
-        //     node->default_callback_group()
-        // );
-        // 
-		// callback_groups_.erase(iter, callback_groups_.end());
+        const auto& groups = node->callbackGroups();
+        std::lock_guard<std::mutex> lock(callback_groups_mutex_);
+
+        for (auto& g : groups)
+        {
+            auto group = g.lock();
+            if (!group || callback_groups_.contains(group->execId()))
+            {
+                continue;
+            }
+            callback_groups_.erase(group->execId());
+            group->setExecutor(nullptr);
+        }
     }
     
     std::shared_ptr<SubscriberBase> Executor::waitOneReady()
@@ -258,7 +267,6 @@ namespace lux::communication {
             buffer_.push(std::move(e));
         }
     }
-    
     
     void TimeOrderedExecutor::processReadyEntries()
     {

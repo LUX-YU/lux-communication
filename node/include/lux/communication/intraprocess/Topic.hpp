@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cassert>
 #include <memory>
-#include <lux/communication/ITopicHolder.hpp>
+#include <lux/communication/TopicBase.hpp>
 
 namespace lux::communication { class Domain; }
 
@@ -68,7 +68,7 @@ namespace lux::communication::intraprocess
      *        Uses a Copy-On-Write approach to manage subscriber arrays.
      */
     template <typename T>
-    class Topic : public ITopicHolder
+    class Topic : public TopicBase
     {
     public:
         static constexpr auto static_type_info = lux::cxx::make_basic_type_info<T>();

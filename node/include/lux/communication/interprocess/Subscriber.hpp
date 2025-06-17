@@ -8,7 +8,7 @@
 #include <optional>
 
 #include <lux/communication/visibility.h>
-#include "lux/communication/ITopicHolder.hpp"
+#include "lux/communication/TopicBase.hpp"
 #include "lux/communication/interprocess/Publisher.hpp"
 #include "lux/communication/UdpMultiCast.hpp"
 #include <lux/communication/Queue.hpp>

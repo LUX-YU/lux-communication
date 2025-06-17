@@ -44,7 +44,6 @@ namespace lux::communication::intraprocess
             SubscriberBase::callbackGroup().notify(SubscriberBase::shared_from_this());
         }
 
-        // Called by Node spinOnce()
         void takeAll() override
         {
             message_t<T> msg;
@@ -54,22 +53,6 @@ namespace lux::communication::intraprocess
             }
 
             clearReady();
-        }
-
-        bool setReadyIfNot() override
-        {
-            bool expected = false;
-            // If originally false, set to true and return true
-            // If already true, return false
-            return ready_flag_.compare_exchange_strong(
-                expected, true,
-                std::memory_order_acq_rel, std::memory_order_acquire
-            );
-        }
-
-        void clearReady() override
-        {
-            ready_flag_.store(false, std::memory_order_release);
         }
 
     private:
@@ -108,7 +91,6 @@ namespace lux::communication::intraprocess
         }
 
     private:
-        std::atomic<bool>               ready_flag_{false};
-        queue_t<T>                      queue_;
+        queue_t<T> queue_;
     };
 }

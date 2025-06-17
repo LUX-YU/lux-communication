@@ -4,16 +4,20 @@
 #include <cstdint>
 #include <memory>
 #include <lux/communication/visibility.h>
+#include <lux/communication/Registry.hpp>
+#include <lux/communication/Subscriber.hpp>
 
 namespace lux::communication
 {
-	class ITopicHolder;
-	class CallbackGroup;
+	class TopicBase;
+	class CallbackGroupBase;
     class NodeBase;
+    class SubscriberBase;
 
-    using TopicHolderSptr   = std::shared_ptr<ITopicHolder>;
-    using CallbackGroupSptr = std::shared_ptr<CallbackGroup>;
-    using NodeBaseSptr      = std::shared_ptr<NodeBase>;
+    using subscriber_handle_t     = typename Registry<SubscriberBase>::Handle;
+    using callback_group_handle_t = typename Registry<CallbackGroupBase>::Handle;
+    using topic_handle_t          = typename QueryableRegistry<TopicBase>::Handle;
+    using node_handle_t           = typename Registry<NodeBase>::Handle;
 
     struct TimeExecEntry
     {
@@ -23,38 +27,49 @@ namespace lux::communication
         bool operator<(const TimeExecEntry& rhs) const;
     };
 
-	class LUX_COMMUNICATION_PUBLIC SubscriberBase 
-        : public std::enable_shared_from_this<SubscriberBase>
+    class LUX_COMMUNICATION_PUBLIC SubscriberBase
     {
         friend class TimeOrderedExecutor;
+        friend class CallbackGroupBase;
         friend class NodeBase;
     public:
-        SubscriberBase(NodeBaseSptr, TopicHolderSptr, CallbackGroupSptr);
+        SubscriberBase(node_handle_t, topic_handle_t, callback_group_handle_t);
 
         virtual ~SubscriberBase();
 
         virtual void takeAll() = 0;
 
-        virtual bool setReadyIfNot() = 0;
-        virtual void clearReady() = 0;
+        virtual void drainAll(std::vector<TimeExecEntry>& out) = 0;
+
+        bool setReadyIfNot()
+        {
+            bool expected = false;
+            // If originally false, set to true and return true
+            // If already true, return false
+            return ready_flag_.compare_exchange_strong(
+                expected, true,
+                std::memory_order_acq_rel, std::memory_order_acquire
+            );
+        }
+
+        void resetReady()
+        {
+            ready_flag_.store(false, std::memory_order_release);
+        }
 
         size_t id() const;
 
-        ITopicHolder& topic();
-        const ITopicHolder& topic() const;
-
-        CallbackGroup& callbackGroup();
-        const CallbackGroup& callbackGroup() const;
+        TopicBase& topic();
+        const TopicBase& topic() const;
 
     private:
-        virtual void drainAll(std::vector<TimeExecEntry>& out) = 0;
-
         void setId(size_t id);
 
-        size_t              id_{0};
-        TopicHolderSptr     topic_;
-        CallbackGroupSptr   callback_group_;
-		NodeBaseSptr	    node_;
+        size_t                    id_{ 0 };
+        topic_handle_t            topic_handle_;
+        std::atomic<bool>         ready_flag_{ false };
+        callback_group_handle_t   callback_group_;
+        node_handle_t	          node_handle_;
     };
 
     template<typename T>

@@ -4,81 +4,41 @@
 
 namespace lux::communication
 {
-	NodeBase::NodeBase(const std::string& name, std::shared_ptr<Domain> domain)
-		: node_name_(name), domain_(std::move(domain))
+	NodeBase::NodeBase(std::string name, Domain* domain, ENodeType type)
+		: node_name_(std::move(name)), domain_(domain), type_(type)
 	{
+		default_callback_group_ = assignCallbackGroup(CallbackGroupType::MutuallyExclusive);
 	}
 
 	NodeBase::~NodeBase() = default;
 
-	const std::string& NodeBase::name()
+	const std::string& NodeBase::name() const
 	{
 		return node_name_;
 	}
 
-	void NodeBase::addCallbackGroup(std::shared_ptr<CallbackGroup> callback_group)
+	const Domain* NodeBase::domain() const
 	{
-		std::lock_guard lck(mutex_callback_groups_);
-		callback_group->setId(
-			callback_groups_.insert(callback_group)
-		);
+		return domain_;
 	}
 
-	void NodeBase::addPublisher(std::shared_ptr<PublisherBase> pub)
+	Domain* NodeBase::domain()
 	{
-		std::lock_guard lk(mutex_pub_);
-		pub->setId(publishers_.insert(pub));
+		return domain_;
 	}
 
-	void NodeBase::addSubscriber(std::shared_ptr<SubscriberBase> sub)
+	subscriber_handle_t NodeBase::assignSubscriber(node_handle_t nh, topic_handle_t th, callback_group_handle_t ch)
 	{
-		std::lock_guard lck(mutex_sub_);
-		sub->setId(subscribers_.insert(sub));
+		return sub_reg_.emplace(nh, th, ch);
 	}
 
-	void NodeBase::removePublisher(size_t pub_id)
+	publisher_handle_t NodeBase::assignPublisher(node_handle_t nh, topic_handle_t th)
 	{
-		std::lock_guard lck(mutex_pub_);
-		if (!publishers_.contains(pub_id))
-		{
-			return; // Publisher not found
-		}
-		publishers_.erase(pub_id);
+		return pub_reg_.emplace(nh, th);
 	}
 
-	void NodeBase::removeSubscriber(size_t sub_id)
+	callback_group_handle_t NodeBase::assignCallbackGroup(CallbackGroupType type)
 	{
-		std::lock_guard lck(mutex_sub_);
-		if (!subscribers_.contains(sub_id))
-		{
-			return; // Subscriber not found
-		}
-		subscribers_.erase(sub_id);
-	}
-
-	void NodeBase::removeCallbackGroup(size_t g_id)
-	{
-		std::lock_guard lck(mutex_callback_groups_);
-		if (!callback_groups_.contains(g_id))
-		{
-			return; // CallbackGroup not found
-		}
-		callback_groups_.erase(g_id);
-	}
-
-	Domain& NodeBase::domain()
-	{
-		return *domain_;
-	}
-
-	const Domain& NodeBase::domain() const
-	{
-		return *domain_;
-	}
-
-	const std::vector<std::weak_ptr<CallbackGroup>>& NodeBase::callbackGroups() const
-	{
-		std::lock_guard lck(mutex_callback_groups_);
-		return callback_groups_.values();
+		return cbg_reg_.emplace(type);
 	}
 } // namespace lux::communication

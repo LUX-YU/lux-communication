@@ -5,10 +5,10 @@
 namespace lux::communication
 {
 	class NodeBase;
-	class ITopicHolder;
+	class TopicBase;
 
 	using NodeBaseSptr	  = std::shared_ptr<NodeBase>;
-	using TopicHolderSptr = std::shared_ptr<ITopicHolder>;
+	using TopicHolderSptr = std::shared_ptr<TopicBase>;
 
 	class LUX_COMMUNICATION_PUBLIC PublisherBase 
 		: public std::enable_shared_from_this<PublisherBase>
@@ -21,8 +21,8 @@ namespace lux::communication
 
 		size_t id() const;
 
-		ITopicHolder& topic();
-		const ITopicHolder& topic() const;
+		TopicBase& topic();
+		const TopicBase& topic() const;
 
 	private:
 		void setId(size_t id);

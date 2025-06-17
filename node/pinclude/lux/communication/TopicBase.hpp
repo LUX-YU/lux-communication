@@ -9,14 +9,14 @@
 namespace lux::communication
 {
     class Domain;
-    class LUX_COMMUNICATION_PUBLIC ITopicHolder
+    class LUX_COMMUNICATION_PUBLIC TopicBase
     {
     public:
 		friend class Domain;
 
-		ITopicHolder() = default;
+		TopicBase() = default;
 
-        virtual ~ITopicHolder();
+        virtual ~TopicBase();
 
 		const std::string& name() const
 		{

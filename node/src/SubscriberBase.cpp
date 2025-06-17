@@ -1,16 +1,11 @@
 #include "lux/communication/SubscriberBase.hpp"
 #include "lux/communication/CallbackGroup.hpp"
-#include "lux/communication/ITopicHolder.hpp"
+#include "lux/communication/TopicBase.hpp"
 #include "lux/communication/NodeBase.hpp"
 
 namespace lux::communication {
 
-    bool TimeExecEntry::operator<(const TimeExecEntry &rhs) const
-    {
-        return timestamp_ns > rhs.timestamp_ns;
-    }
-
-    const ITopicHolder& SubscriberBase::topic() const
+    const TopicBase& SubscriberBase::topic() const
     {
         return *topic_;
     }
@@ -20,7 +15,7 @@ namespace lux::communication {
         return *callback_group_;
     }
 
-    ITopicHolder& SubscriberBase::topic()
+    TopicBase& SubscriberBase::topic()
     {
         return *topic_;
     }

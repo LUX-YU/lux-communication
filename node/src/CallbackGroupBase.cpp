@@ -6,10 +6,7 @@ namespace lux::communication {
     CallbackGroup::CallbackGroup(std::shared_ptr<NodeBase> node, CallbackGroupType type)
         : node_(std::move(node)), type_(type) {}
     
-    CallbackGroup::~CallbackGroup()
-    {
-		node_->removeCallbackGroup(id());
-    }
+    CallbackGroup::~CallbackGroup() = default;
     
     CallbackGroupType CallbackGroup::type() const {
         return type_;
@@ -44,7 +41,6 @@ namespace lux::communication {
             ex->enqueueReady(std::move(sub));
         }
     }
-    
     
     void CallbackGroup::setExecutor(std::shared_ptr<Executor> exec)
     {

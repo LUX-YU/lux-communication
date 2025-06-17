@@ -42,7 +42,7 @@ namespace lux::communication::interprocess
                 group = default_callback_group();
             }
 
-			auto topic_ptr = domain_->createOrGetTopic<ITopicHolder, T>(topic);
+			auto topic_ptr = domain_->createOrGetTopic<TopicBase, T>(topic);
 
             auto sub = std::make_shared<Subscriber<T>>(
                 shared_from_this(),
