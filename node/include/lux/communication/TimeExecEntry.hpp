@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <cstddef>
+#include <cstdint>
 
 namespace lux::communication
 {

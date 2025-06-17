@@ -9,6 +9,7 @@ namespace lux::communication
     // Forward declarations
 	class NodeBase;
     class Executor;
+    class ExecutorBase;
     class SubscriberBase;
 
     enum class CallbackGroupType

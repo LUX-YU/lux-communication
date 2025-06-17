@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <limits>
 #include <lux/communication/visibility.h>
 
 namespace lux::communication
