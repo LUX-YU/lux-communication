@@ -12,14 +12,18 @@
 #include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/cxx/container/SparseSet.hpp>
 
+namespace lux::communication
+{
+    class CallbackGroupBase;
+}
+
 namespace lux::communication::intraprocess
 {
     using lux::communication::Domain;
-
-    class CallbackGroupBase;
-
 	class LUX_COMMUNICATION_PUBLIC Node : public lux::communication::NodeBase
     {
+        template<typename T> friend class Publisher;
+        template<typename T> friend class Subscriber;
     public:
         explicit Node(const std::string& node_name, Domain& domain = Domain::default_domain());
 
@@ -28,7 +32,7 @@ namespace lux::communication::intraprocess
         CallbackGroupBase* defaultCallbackGroup();
     private:
 
-        std::unique_ptr<CallbackGroupBase> default_callbackgroup_;
+        std::unique_ptr<lux::communication::CallbackGroupBase> default_callbackgroup_;
     };
 }
 

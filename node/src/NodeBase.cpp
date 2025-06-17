@@ -83,6 +83,16 @@ namespace lux::communication
 		sub->setIdInNode(invalid_id);
 	}
 
+	void NodeBase::setExecutor(size_t id, ExecutorBase* executor)
+	{
+		id_in_executor_ = id;
+		std::scoped_lock lck(mutex_callback_groups_);
+		for (auto cbg : callback_groups_.values())
+		{
+			cbg->setExecutor(executor);
+		}
+	}
+
 	Domain& NodeBase::domain()
 	{
 		return domain_;

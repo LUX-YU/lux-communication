@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 #include <functional>
+
+#include <lux/communication/TimeExecEntry.hpp>
 #include <lux/communication/visibility.h>
 
 namespace lux::communication
@@ -13,14 +15,6 @@ namespace lux::communication
 	class CallbackGroupBase;
 
     using TopicSptr = std::shared_ptr<TopicBase>;
-
-    struct TimeExecEntry
-    {
-        uint64_t timestamp_ns;
-        std::function<void()> invoker;
-
-        bool operator<(const TimeExecEntry& rhs) const;
-    };
 
 	class LUX_COMMUNICATION_PUBLIC SubscriberBase
     {
@@ -35,6 +29,7 @@ namespace lux::communication
 
         virtual bool setReadyIfNot() = 0;
         virtual void clearReady() = 0;
+        virtual void drainAll(std::vector<TimeExecEntry>& out) = 0;
 
         size_t idInNode() const
         {
@@ -55,6 +50,16 @@ namespace lux::communication
         T& topicAs() requires std::is_base_of_v<TopicBase, T>
         {
             return static_cast<T&>(*topic_);
+        }
+
+        CallbackGroupBase* callbackGroup()
+        {
+            return callback_group_;
+        }
+
+        const CallbackGroupBase* callbackGroup() const
+        {
+            return callback_group_;
         }
 
     protected:
@@ -83,51 +88,5 @@ namespace lux::communication
         std::shared_ptr<TopicBase>  topic_;
         NodeBase*                   node_;
         CallbackGroupBase*          callback_group_;
-    };
-
-    template<typename T>
-    class TSubscriberBase : public SubscriberBase
-    {
-    public:
-		using msg_t    = T;
-        using Callback = std::function<void(const T&)>;
-
-        TSubscriberBase(NodeBaseSptr node, TopicHolderSptr topic, Callback callback, CallbackGroupSptr group)
-			: SubscriberBase(std::move(node), std::move(topic), std::move(group)),
-			callback_(std::move(callback)){}
-
-		~TSubscriberBase() override = default;
-
-		TSubscriberBase(const TSubscriberBase&) = delete;
-		TSubscriberBase& operator=(const TSubscriberBase&) = delete;
-
-		TSubscriberBase(TSubscriberBase&& rhs) noexcept
-			: SubscriberBase(std::move(rhs)),
-			callback_(std::move(rhs.callback_))
-        {
-			rhs.callback_ = nullptr; // Clear the moved-from callback
-        }
-
-		TSubscriberBase& operator=(TSubscriberBase&& rhs) noexcept
-		{
-			if (this != &rhs)
-			{
-				SubscriberBase::operator=(std::move(rhs));
-				callback_ = std::move(rhs.callback_);
-				rhs.callback_ = nullptr; // Clear the moved-from callback
-			}
-			return *this;
-		}
-
-        void invokeCallback(const T& msg)
-        {
-            if (callback_)
-            {
-                callback_(msg);
-            }
-        }
-
-    protected:
-		Callback callback_;
     };
 }

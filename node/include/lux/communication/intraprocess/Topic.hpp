@@ -6,6 +6,7 @@
 #include <cassert>
 #include <memory>
 #include <lux/communication/TopicBase.hpp>
+#include <lux/communication/Queue.hpp>
 
 namespace lux::communication::intraprocess
 {
@@ -49,7 +50,7 @@ namespace lux::communication::intraprocess
                     auto sub = static_cast<Subscriber<T>*>(sub_base);
                     sub->enqueue(msg);
                 }
-            )
+            );
         }
     };
 } // namespace lux::communication::intraprocess

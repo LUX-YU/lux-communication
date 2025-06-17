@@ -5,11 +5,6 @@
 
 namespace lux::communication 
 {
-    bool TimeExecEntry::operator<(const TimeExecEntry &rhs) const
-    {
-        return timestamp_ns > rhs.timestamp_ns;
-    }
-    
     SubscriberBase::SubscriberBase(TopicSptr topic, NodeBase* node, CallbackGroupBase* cgb)
 		: topic_(std::move(topic)), callback_group_(cgb), node_(node)
     {

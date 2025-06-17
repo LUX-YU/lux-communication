@@ -6,6 +6,11 @@ namespace lux::communication
 {
 	static inline constexpr size_t invalid_id = std::numeric_limits<size_t>::max();
 
+	TopicBase::~TopicBase()
+	{
+
+	}
+
 	void TopicBase::addPublisher(PublisherBase* pub)
 	{
 		std::lock_guard lck(mutex_pub_);

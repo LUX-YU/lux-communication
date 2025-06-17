@@ -46,11 +46,10 @@ namespace lux::communication
 
             // Create a new Topic
             auto new_topic = std::make_shared<TopicType>(std::forward<Args>(args)...);
-			new_topic->setDomain(this); // Set the Domain for the Topic
 			new_topic->setTopicName(topicName);
 			new_topic->setTypeInfo(type_info);
             auto topic_idx = topics_.insert(new_topic);
-            new_topic->setIndex(topic_idx);
+            new_topic->setIdInDoamin(topic_idx);
             topic_index_map_[key] = topic_idx;
             return new_topic;
         }

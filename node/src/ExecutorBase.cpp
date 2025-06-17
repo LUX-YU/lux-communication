@@ -1,15 +1,17 @@
 #include "lux/communication/ExecutorBase.hpp"
-#include "lux/communication/intraprocess/Node.hpp"
+#include "lux/communication/NodeBase.hpp"
+#include "lux/communication/SubscriberBase.hpp"
 
-namespace lux::communication {
-    ExecutorBase::ExecutorBase() : running_(false) {}
+namespace lux::communication 
+{  
+    ExecutorBase::ExecutorBase() : running_(true) {}
     ExecutorBase::~ExecutorBase() { stop(); }
     
     void ExecutorBase::addNode(NodeBase* node)
     {
         std::lock_guard<std::mutex> lock(nodes_mutex_);
         auto idx = nodes_.insert(node);
-        node->setIdInExecutor(idx);
+        node->setExecutor(idx, this);
     }
     
     void ExecutorBase::removeNode(NodeBase* node)
@@ -17,7 +19,7 @@ namespace lux::communication {
         std::lock_guard<std::mutex> lock(nodes_mutex_);
         if (nodes_.erase(node->idInExecutor()))
         {
-            node->setIdInExecutor(std::numeric_limits<size_t>::max());
+            node->setExecutor(std::numeric_limits<size_t>::max(), nullptr);
         }
     }
     
@@ -109,9 +111,9 @@ namespace lux::communication {
         }
     }
 
-    void SingleThreadedExecutor::handleSubscriber(std::shared_ptr<SubscriberBase> sub)
+    void SingleThreadedExecutor::handleSubscriber(SubscriberBase* sub)
     {
-        if (sub)
+        if(sub)
         {
             sub->takeAll();
         }
@@ -143,8 +145,8 @@ namespace lux::communication {
         if (!sub)
             return;
 
-        auto& group = sub->callbackGroup();
-        if (group.type() == CallbackGroupType::MutuallyExclusive)
+        auto group = sub->callbackGroup();
+        if (group->type() == CallbackGroupType::MutuallyExclusive)
         {
             sub->takeAll();
         }

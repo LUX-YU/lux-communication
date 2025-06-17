@@ -1,7 +1,8 @@
 #include "lux/communication/interprocess/Node.hpp"
+#include "lux/communication/CallbackGroupBase.hpp"
 
-namespace lux::communication::interprocess {
-
+namespace lux::communication::interprocess 
+{
     Node::Node(const std::string& name, std::shared_ptr<lux::communication::Domain> domain)
     	: TNodeBase(std::move(name), std::move(domain))
     {}

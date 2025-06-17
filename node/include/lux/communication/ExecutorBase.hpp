@@ -11,9 +11,11 @@
 #include <queue>
 #include <chrono>
 
-#include <lux/communication/visibility.h>
-#include <lux/communication/CallbackGroup.hpp>
+#include <lux/communication/TimeExecEntry.hpp>
+#include <lux/communication/CallbackGroupBase.hpp>
+#include <lux/communication/Queue.hpp>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
+#include <lux/communication/visibility.h>
 #include <lux/cxx/concurrent/ThreadPool.hpp>
 
 namespace lux::communication {
@@ -71,7 +73,7 @@ namespace lux::communication {
 		void handleSubscriber(SubscriberBase* sub) override;
 	};
 
-	class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public Executor
+	class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public ExecutorBase
 	{
 	public:
 		explicit MultiThreadedExecutor(size_t threadNum = 2);
@@ -85,7 +87,7 @@ namespace lux::communication {
 		lux::cxx::ThreadPool thread_pool_;
 	};
 
-	class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public Executor
+	class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public ExecutorBase
 	{
 	public:
 		explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{ 0 });

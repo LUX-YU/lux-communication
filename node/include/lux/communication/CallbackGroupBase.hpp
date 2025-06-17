@@ -22,6 +22,7 @@ namespace lux::communication
     class LUX_COMMUNICATION_PUBLIC CallbackGroupBase
     {
         friend class NodeBase;
+        friend class ExecutorBase;
     public:
         explicit CallbackGroupBase(NodeBase* node, CallbackGroupType type = CallbackGroupType::MutuallyExclusive);
 
@@ -35,12 +36,14 @@ namespace lux::communication
 
         void removeSubscriber(SubscriberBase* sub_id);
 
+        void notify(SubscriberBase*);
+
         template<typename Func>
         void foreachSubscriber(Func&& func)
         {
             std::vector<SubscriberBase*> sub_buffers;
             {
-                std::scoped_lock lck(mutex_sub_);
+                std::scoped_lock lck(mutex_);
                 sub_buffers = subscribers_.values();
             }
 
@@ -55,6 +58,21 @@ namespace lux::communication
             return id_in_node_;
         }
 
+        void setExecutor(ExecutorBase* executor)
+        {
+            executor_ = executor;
+        }
+
+        ExecutorBase* executor()
+        {
+            return executor_;
+        }
+
+        const ExecutorBase* executor() const
+        {
+            return executor_;
+        }
+
     private:
         void setIdInNode(size_t id)
         {
@@ -64,6 +82,7 @@ namespace lux::communication
         using CallbackGroupList = lux::cxx::AutoSparseSet<SubscriberBase*>;
 
         NodeBase*             node_;
+        ExecutorBase*         executor_;
         size_t                id_in_node_{invalid_id};
         
 

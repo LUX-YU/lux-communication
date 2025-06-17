@@ -2,11 +2,17 @@
 #include <functional>
 #include <memory>
 #include <lux/communication/Queue.hpp>
+#include <lux/communication/ExecutorBase.hpp>
 #include <lux/communication/SubscriberBase.hpp>
 #include <lux/communication/visibility.h>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 
 #include "Topic.hpp"
+
+namespace lux::communication
+{
+    class CallbackGroupBase;
+}
 
 namespace lux::communication::intraprocess
 {
@@ -14,12 +20,12 @@ namespace lux::communication::intraprocess
     template <typename T>
 	class Subscriber : public lux::communication::SubscriberBase
     {
-        static TopicSptr getTopic(NodeBase* node)
+        static TopicSptr getTopic(Node* node, const std::string& topic)
         {
-            return node->domain().createOrGetTopic<Topic<T>, T>();
+            return node->domain().createOrGetTopic<Topic<T>, T>(topic);
         }
 
-        static CallbackGroupBase getCallbackGroup(CallbackGroupBase* cgb, NodeBase* node)
+        static CallbackGroupBase* getCallbackGroup(CallbackGroupBase* cgb, Node* node)
         {
             return cgb == nullptr ? node->defaultCallbackGroup() : cgb;
         }
@@ -29,7 +35,7 @@ namespace lux::communication::intraprocess
 
         template<typename Func>
         Subscriber(const std::string& topic, Node* node, Func&& func, CallbackGroupBase* cgb = nullptr)
-            :   SubscriberBase(getTopic(node), node, getCallbackGroup(cgb, node)), callback_func_(std::forward<Func>(func))
+            :   SubscriberBase(getTopic(node, topic), node, getCallbackGroup(cgb, node)), callback_func_(std::forward<Func>(func))
         {}
 
         ~Subscriber() override {
@@ -47,7 +53,7 @@ namespace lux::communication::intraprocess
         {
             push(queue_, std::move(msg));
 
-            SubscriberBase::callbackGroup().notify(SubscriberBase::shared_from_this());
+            callbackGroup()->notify(this);
         }
 
         // Called by Node spinOnce()
@@ -56,7 +62,7 @@ namespace lux::communication::intraprocess
             message_t<T> msg;
             while (try_pop(queue_, msg))
             {
-                Parent::invokeCallback(*msg);
+                callback_func_(msg);
             }
 
             clearReady();
@@ -84,10 +90,9 @@ namespace lux::communication::intraprocess
 			// Close the queue and join the thread if needed
 			close(queue_);
 			ready_flag_.store(false, std::memory_order_release);
-			Subscriber::topic().removeSubscriber(this);
         }
 
-        void drainAll(std::vector<TimeExecEntry> &out) override
+        void drainAll(std::vector<TimeExecEntry>& out)
         {
             // static_assert(lux::communication::is_msg_stamped<T>, "Subscriber<T> does not support non-stamped message type T");
             if constexpr(lux::communication::is_msg_stamped<T>)

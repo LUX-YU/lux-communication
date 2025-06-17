@@ -15,14 +15,14 @@ namespace lux::communication::intraprocess
     template <typename T>
     class Publisher : public lux::communication::PublisherBase
     {
-        static TopicSptr getTopic(NodeBase* node)
+        static TopicSptr getTopic(Node* node, const std::string& topic)
         {
-            return node->domain().createOrGetTopic<Topic<T>, T>();
+            return node->domain().createOrGetTopic<Topic<T>, T>(topic);
         }
 
     public:
         Publisher(const std::string& topic, Node* node)
-            : PublisherBase(getTopic(node), node) { }
+            : PublisherBase(getTopic(node, topic), node) { }
 
 		~Publisher() = default;
 

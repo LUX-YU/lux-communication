@@ -23,6 +23,8 @@ namespace lux::communication
 		~NodeBase();
 
 		const std::string& name();
+
+		Domain& domain();
 		const Domain& domain() const;
 
 		template<typename Func>
@@ -76,7 +78,6 @@ namespace lux::communication
 		}
 
 	protected:
-		Domain& domain();
 
 		void addCallbackGroup(CallbackGroupBase*);
 		void addPublisher(PublisherBase*);
@@ -85,11 +86,9 @@ namespace lux::communication
 		void removeCallbackGroup(CallbackGroupBase*);
 		void removePublisher(PublisherBase*);
 		void removeSubscriber(SubscriberBase*);
-
-		void setIdInExecutor(size_t id)
-		{
-			id_in_executor_ = id;
-		}
+		
+		// also assign id
+		void setExecutor(size_t, ExecutorBase*);
 
 	private:
 		std::string node_name_;
