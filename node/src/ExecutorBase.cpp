@@ -4,7 +4,7 @@
 
 namespace lux::communication 
 {  
-    ExecutorBase::ExecutorBase() : spinning_(false) {}
+    ExecutorBase::ExecutorBase() : spinning_(true) {}
     ExecutorBase::~ExecutorBase() { stop(); }
 
     void ExecutorBase::addNode(NodeBase* node)
@@ -51,13 +51,17 @@ namespace lux::communication
         stop();
     }
 
-    void SingleThreadedExecutor::spinSome()
+    bool SingleThreadedExecutor::spinSome()
     {
+        if (!spinning_) {
+            return false;
+        }
         auto sub = waitOneReady();
         if (sub)
         {
             handleSubscriber(std::move(sub));
         }
+        return spinning_;
     }
 
     void SingleThreadedExecutor::handleSubscriber(SubscriberBase* sub)
@@ -75,15 +79,16 @@ namespace lux::communication
         stop();
     }
 
-    void MultiThreadedExecutor::spinSome()
+    bool MultiThreadedExecutor::spinSome()
     {
         auto sub = waitOneReady();
         if (!spinning_)
-            return;
+            return false;
         if (sub)
         {
             handleSubscriber(std::move(sub));
         }
+        return spinning_;
     }
 
     void MultiThreadedExecutor::handleSubscriber(SubscriberBase* sub)
@@ -123,14 +128,19 @@ namespace lux::communication
         stop();
     }
 
-    void TimeOrderedExecutor::spinSome()
+    bool TimeOrderedExecutor::spinSome()
     {
+        if (!spinning_)
+        {
+            return false;
+        }
         auto sub = waitOneReady();
         if (sub)
         {
             handleSubscriber(sub);
         }
         processReadyEntries();
+        return spinning_;
     }
 
     void TimeOrderedExecutor::spin()

@@ -17,11 +17,31 @@ namespace lux::communication::intraprocess {
         return default_callbackgroup_.get();
     }
 
+    static SingleThreadedExecutor& default_executor()
+    {
+        static SingleThreadedExecutor instance;
+        return instance;
+    }
+
     void spin(Node* node)
     {
-        static SingleThreadedExecutor default_executor;
-        default_executor.addNode(node);
-        default_executor.spin();
-        default_executor.removeNode(node);
+        auto& exec = default_executor();
+        exec.addNode(node);
+        exec.spin();
+        exec.removeNode(node);
+    }
+
+    void spinUntil(Node* node, bool& flag)
+    {
+        auto& exec = default_executor();
+        exec.addNode(node);
+        while (flag && exec.spinSome());
+        exec.removeNode(node);
+    }
+
+    void stopSpin()
+    {
+        auto& exec = default_executor();
+        exec.stop();
     }
 } // namespace lux::communication::intraprocess

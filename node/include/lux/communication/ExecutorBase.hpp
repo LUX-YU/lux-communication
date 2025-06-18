@@ -33,7 +33,7 @@ namespace lux::communication {
 		virtual void addNode(NodeBase* node);
 		virtual void removeNode(NodeBase* node);
 
-		virtual void spinSome() = 0;
+		virtual bool spinSome() = 0;
 		virtual void handleSubscriber(SubscriberBase* sub) = 0;
 
 		virtual void spin()
@@ -107,7 +107,7 @@ namespace lux::communication {
 		SingleThreadedExecutor() = default;
 		~SingleThreadedExecutor() override;
 
-		void spinSome() override;
+		bool spinSome() override;
 		void handleSubscriber(SubscriberBase* sub) override;
 	};
 
@@ -117,7 +117,7 @@ namespace lux::communication {
 		explicit MultiThreadedExecutor(size_t threadNum = 2);
 		~MultiThreadedExecutor() override;
 
-		void spinSome() override;
+		bool spinSome() override;
 		void stop() override;
 		void handleSubscriber(SubscriberBase* sub) override;
 
@@ -131,7 +131,7 @@ namespace lux::communication {
 		explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{ 0 });
 		~TimeOrderedExecutor() override;
 
-		void spinSome() override;
+		bool spinSome() override;
 		void spin() override;
 		void stop() override;
 

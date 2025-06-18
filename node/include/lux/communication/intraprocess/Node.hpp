@@ -36,5 +36,7 @@ namespace lux::communication::intraprocess
     };
 
     LUX_COMMUNICATION_PUBLIC void spin(Node*);
+    LUX_COMMUNICATION_PUBLIC void spinUntil(Node*, bool& flag);
+    LUX_COMMUNICATION_PUBLIC void stopSpin();
 }
 
