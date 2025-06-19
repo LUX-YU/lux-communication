@@ -83,7 +83,7 @@ namespace lux::communication {
 		}
 
 	protected:
-		using NodeList = lux::cxx::AutoSparseSet<NodeBase*>;
+		using NodeList	 = lux::cxx::AutoSparseSet<NodeBase*>;
 		using ReadyQueue = moodycamel::ConcurrentQueue<SubscriberBase*>;
 
 		NodeList							nodes_;
