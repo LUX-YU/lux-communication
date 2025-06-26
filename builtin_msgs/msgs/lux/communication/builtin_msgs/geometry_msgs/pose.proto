@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package lux.communication.builtin_msgs.geometry_msgs;
 
+import "lux/communication/builtin_msgs/common_msgs/matrix4.proto";
 import "lux/communication/builtin_msgs/geometry_msgs/quaternion.proto";
 import "lux/communication/builtin_msgs/geometry_msgs/point.proto";
 
@@ -11,5 +12,5 @@ message Pose{
 }
 
 message PoseGeo{
-	optional 
+	optional Matrix4    pose = 1;
 }
