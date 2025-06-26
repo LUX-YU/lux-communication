@@ -4,5 +4,6 @@
 namespace lux::communication::builtin_msgs::geometry_msgs
 {
 	using PointS = Eigen::Vector3d;
+	using PointHomogeneousS = Eigen::Vector4d;
 }
 

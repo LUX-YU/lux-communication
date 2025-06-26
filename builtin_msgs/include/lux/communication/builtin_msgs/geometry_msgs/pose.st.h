@@ -17,4 +17,6 @@ namespace lux::communication::builtin_msgs::geometry_msgs
 			return mat;
 		}
 	};
+
+	using PoseGeoS = Eigen::Isometry3d;
 }

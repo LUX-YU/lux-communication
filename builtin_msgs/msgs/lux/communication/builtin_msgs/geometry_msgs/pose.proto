@@ -9,3 +9,7 @@ message Pose{
 	optional Point		position = 1;
 	optional Quaternion orientation = 2;
 }
+
+message PoseGeo{
+	optional 
+}

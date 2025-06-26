@@ -9,4 +9,10 @@ namespace lux::communication::builtin_msgs::geometry_msgs
 		common_msgs::TimestampS timestamp;
 		PoseS					pose;
 	};
+
+	struct PoseGeoStampedS
+	{
+		common_msgs::TimestampS timestamp;
+		PoseGeoS				pose;
+	};
 }
