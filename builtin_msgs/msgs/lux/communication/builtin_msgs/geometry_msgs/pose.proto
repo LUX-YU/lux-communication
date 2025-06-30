@@ -12,5 +12,5 @@ message Pose{
 }
 
 message PoseGeo{
-	optional Matrix4    pose = 1;
+	optional lux.communication.builtin_msgs.common_msgs.Matrix4    pose = 1;
 }
