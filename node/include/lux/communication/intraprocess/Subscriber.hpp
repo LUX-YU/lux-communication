@@ -93,7 +93,7 @@ namespace lux::communication::intraprocess
                     // capture 'msg' by move in the invoker
                     // Capture user callback set when subscribing
                     auto invoker = [this, m=std::move(msg)]() mutable {
-						this->invokeCallback(*m);
+						this->callback_func_(m);
                     };
                     out.push_back(TimeExecEntry{ ts_ns, std::move(invoker) });
                 }
