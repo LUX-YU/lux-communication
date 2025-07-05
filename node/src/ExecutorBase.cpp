@@ -56,7 +56,7 @@ namespace lux::communication
         if (!spinning_) {
             return false;
         }
-        auto sub = waitOneReady();
+        auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
         if (sub)
         {
             handleSubscriber(std::move(sub));
@@ -81,7 +81,7 @@ namespace lux::communication
 
     bool MultiThreadedExecutor::spinSome()
     {
-        auto sub = waitOneReady();
+        auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
         if (!spinning_)
             return false;
         if (sub)
@@ -134,7 +134,7 @@ namespace lux::communication
         {
             return false;
         }
-        auto sub = waitOneReady();
+        auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
         if (sub)
         {
             handleSubscriber(sub);

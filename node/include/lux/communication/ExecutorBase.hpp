@@ -76,6 +76,16 @@ namespace lux::communication {
 			return sub;
 		}
 
+		SubscriberBase* waitOneReadyTimeout(std::chrono::milliseconds timeout)
+		{
+			if (ready_sem_.try_acquire_for(timeout)) {
+				SubscriberBase* sub;
+				ready_queue_.try_dequeue(sub);
+				return sub;
+			}
+			return nullptr;
+		}
+
 		void enqueueReady(SubscriberBase* sub)
 		{
 			ready_queue_.enqueue(std::move(sub));
