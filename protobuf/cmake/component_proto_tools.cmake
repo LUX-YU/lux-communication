@@ -157,7 +157,7 @@ function(generate_protos)
 	endforeach()
 	
 	execute_process(
-		COMMAND				${Protobuf_Compiler} ${COMPILER_ARGUMENTS}
+		COMMAND				${Protobuf_Compiler} ${COMPILER_ARGUMENTS} --experimental_allow_proto3_optional
 		RESULT_VARIABLE		OUTPUT
 		COMMAND_ECHO		STDOUT
 	)

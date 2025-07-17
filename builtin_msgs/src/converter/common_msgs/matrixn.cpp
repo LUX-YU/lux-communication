@@ -25,6 +25,7 @@ namespace lux::communication::builtin_msgs
 		{
 			out.mutable_data()->Resize(in.rows(), in.cols());
 		}
-		out.mutable_data()->Assign(in.data(), in.data() + in.size());
+		out.mutable_data()->Add(in.data(), in.data() + in.size());
+		// out.mutable_data()->Assign(in.data(), in.data() + in.size());
 	}
 }

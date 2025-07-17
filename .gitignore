@@ -1,6 +1,7 @@
 /out
 /.vs
 /.vscode
+/.cache
 /build
 /CMakeSettings.json
 /cmake-build-*
