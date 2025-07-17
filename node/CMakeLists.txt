@@ -3,13 +3,21 @@ find_package(stduuid  CONFIG REQUIRED)
 find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time)
 
 set(LUX_COMMUNICATION_NODE_SRC
-	${CMAKE_CURRENT_SOURCE_DIR}/src/Subscriber.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/intraprocess/Node.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/Domain.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/TopicBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/CallbackGroupBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/ExecutorBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/NodeBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/PublisherBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/SubscriberBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/TimeExecEntry.cpp
 )
 
 if(WIN32)
-	LIST(APPEND LUX_COMMUNICATION_NODE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/UdpMultiCastImplWin.cpp)
+	LIST(APPEND LUX_COMMUNICATION_NODE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/UdpMultiCastImplWin.cpp)
 else()
-	LIST(APPEND LUX_COMMUNICATION_NODE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/UdpMultiCastImplPosix.cpp)
+	LIST(APPEND LUX_COMMUNICATION_NODE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/UdpMultiCastImplPosix.cpp)
 endif()
 
 add_component(
@@ -30,13 +38,13 @@ component_include_directories(
 )
 
 target_link_libraries(
-	node 
-	PUBLIC
-	# cppzmq
-	lux::cxx::concurrent
-	lux::cxx::compile_time
-	PRIVATE
-	stduuid
+        node
+        PUBLIC
+        cppzmq
+        lux::cxx::concurrent
+        lux::cxx::compile_time
+        PRIVATE
+        stduuid
 )
 
 component_add_internal_dependencies(
@@ -55,12 +63,13 @@ endif()
 
 set(USE_LOCKFREE_QUEUE TRUE CACHE BOOL "Use cameron314/concurrentqueue")
 if(USE_LOCKFREE_QUEUE)
-	find_package(concurrentqueue CONFIG)
+	find_package(concurrentqueue CONFIG QUIET)
 	if(NOT concurrentqueue_FOUND)
 		# Vcpkg
 		find_package(unofficial-concurrentqueue CONFIG REQUIRED)
 		set(CONCURRENT_QUEUE unofficial::concurrentqueue::concurrentqueue)
 		set(CONCURRENT_QUEUE_DEPENDS "find_package(unofficial-concurrentqueue CONFIG REQUIRED)")
+		message(STATUS "Using cameron314/concurrentqueue")
 	else()
 		set(CONCURRENT_QUEUE concurrentqueue::concurrentqueue)
 		set(CONCURRENT_QUEUE_DEPENDS "find_package(concurrentqueue CONFIG REQUIRED)")
@@ -80,12 +89,14 @@ if(USE_LOCKFREE_QUEUE)
 
 	component_add_transitive_commands(
 		node
+		"find_package(cppzmq   CONFIG REQUIRED)"
 		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
 		"${CONCURRENT_QUEUE_DEPENDS}"
 	)
 else()
 	component_add_transitive_commands(
 		node
+		"find_package(cppzmq   CONFIG REQUIRED)"
 		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
 	)
 endif()

@@ -15,6 +15,7 @@ set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/protogen)
 set(BUILTIN_MSGS_PROTO_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/timestamp.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/matrix3.proto
+	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/matrix4.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/matrixn.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vector3.proto
 	${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vector4.proto
@@ -50,6 +51,7 @@ generate_protos(
 set(PB_ST_CONVERTER_SRCS    
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/timestamp.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/matrix3.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/matrix4.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/matrixn.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vector3.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vector4.cpp
