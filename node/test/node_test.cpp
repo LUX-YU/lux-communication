@@ -442,24 +442,12 @@ static void testLatencySinglePubSub(int message_count = 1000)
 	// 2) Use atomic index to fill latencies[i]
 	std::atomic<int> write_index{ 0 };
 
-<<<<<<< HEAD
-    // 2) 用原子索引来在回调中写入 latencies[i]
-    std::atomic<int> writeIndex{0};  
-    
-    // 3) 创建订阅者回调
-    auto sub = node->createSubscriber<TimeStampedMsg>("latency_topic",
-        [&](const TimeStampedMsg &msg)
-        {
-            auto now   = std::chrono::steady_clock::now();
-            auto delta = std::chrono::duration_cast<std::chrono::microseconds>(now - msg.sendTime).count();
-=======
 	// 3) Subscriber callback
 	auto sub = std::make_shared<lux::communication::intraprocess::Subscriber<TimeStampedMsg>>("latency_topic", &node,
 		[&](const std::shared_ptr<TimeStampedMsg> msg)
 		{
-			auto now   = std::chrono::high_resolution_clock::now();
+			auto now   = std::chrono::steady_clock::now();
 			auto delta = std::chrono::duration_cast<std::chrono::microseconds>(now - msg->send_time).count();
->>>>>>> origin/main
 
 			// Atomically get a write slot
 			int i = write_index.fetch_add(1, std::memory_order_relaxed);
@@ -481,22 +469,12 @@ static void testLatencySinglePubSub(int message_count = 1000)
 		}
 	);
 
-<<<<<<< HEAD
     // 6) 发布 N 条消息
-    for (int i = 0; i < messageCount; ++i)
+    for (int i = 0; i < message_count; ++i)
     {
         TimeStampedMsg msg;
-        msg.sendTime = std::chrono::steady_clock::now();
-        msg.payload  = "test " + std::to_string(i);
-=======
-	// wait for spin thread
-	std::this_thread::sleep_for(std::chrono::seconds(1));
-	for (int i = 0; i < message_count; ++i)
-	{
-		TimeStampedMsg msg;
-		msg.send_time = std::chrono::high_resolution_clock::now();
-		msg.payload   = std::format("test {}", i); // C++20 format
->>>>>>> origin/main
+        msg.send_time = std::chrono::steady_clock::now();
+        msg.payload   = "test " + std::to_string(i);
 
 		pub->publish(std::move(msg));
 	}
