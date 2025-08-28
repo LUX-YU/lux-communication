@@ -131,7 +131,6 @@ file(WRITE \"\${HEADER}\" \"\${_c}\")
     # ---- Generate rules for each proto ----
     set(ALL_GEN_SRCS)
     set(ALL_GEN_HDRS)
-    set(ALL_PATCH_MARKERS)
 
     foreach(proto_file ${PROTO_FILES})
         if(NOT EXISTS ${proto_file})
@@ -164,28 +163,29 @@ file(WRITE \"\${HEADER}\" \"\${_c}\")
 
         set(_out_cc ${_out_dir}/${_proto_name_we}.pb.cc)
         set(_out_h  ${_out_dir}/${_proto_name_we}.pb.h)
-
-        add_custom_command(
-            OUTPUT     ${_out_cc} ${_out_h}
-            COMMAND    ${CMAKE_COMMAND} -E make_directory ${_out_dir}
-            COMMAND    ${Protobuf_Compiler} ${COMPILER_ARGUMENTS} ${_proto_abs}
-            DEPENDS    ${_proto_abs}
-            COMMENT    "Generating C++ from ${proto_file}"
-            VERBATIM
-        )
-
+    
         if(_need_patch)
             add_custom_command(
-                OUTPUT     ${_out_h}.patched
+                OUTPUT     ${_out_cc} ${_out_h}
+                COMMAND    ${CMAKE_COMMAND} -E make_directory ${_out_dir}
+                COMMAND    ${Protobuf_Compiler} ${COMPILER_ARGUMENTS} ${_proto_abs}
                 COMMAND    ${CMAKE_COMMAND}
                            -DHEADER=${_out_h}
                            -DINSERTS=${_include_block}
                            -P ${_patch_script}
-                DEPENDS    ${_out_h}
-                COMMENT    "Patching includes into ${_out_h}"
+                DEPENDS    ${_proto_abs}
+                COMMENT    "Generating C++ from ${proto_file}"
                 VERBATIM
             )
-            list(APPEND ALL_PATCH_MARKERS ${_out_h}.patched)
+        else()
+            add_custom_command(
+                OUTPUT     ${_out_cc} ${_out_h}
+                COMMAND    ${CMAKE_COMMAND} -E make_directory ${_out_dir}
+                COMMAND    ${Protobuf_Compiler} ${COMPILER_ARGUMENTS} ${_proto_abs}
+                DEPENDS    ${_proto_abs}
+                COMMENT    "Generating C++ from ${proto_file}"
+                VERBATIM
+            )
         endif()
 
         list(APPEND ALL_GEN_SRCS ${_out_cc})
@@ -194,10 +194,10 @@ file(WRITE \"\${HEADER}\" \"\${_c}\")
 
     # ---- Create library target and expose header directories ----
     # Add generated .cc/.h (and patch marker files) as sources to make the build graph complete
-    add_library(${_target} ${_libtype}
+    add_library(
+        ${_target} 
+        ${_libtype}
         ${ALL_GEN_SRCS}
-        ${ALL_GEN_HDRS}
-        ${ALL_PATCH_MARKERS}
     )
     
     target_include_directories(
