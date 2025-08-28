@@ -7,4 +7,5 @@ target_link_libraries(
 	conversion_test
 	PRIVATE
 	builtin_msgs
+	builtin_msgs_protos
 )
