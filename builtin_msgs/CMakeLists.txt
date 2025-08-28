@@ -116,6 +116,14 @@ target_link_libraries(
         builtin_msgs_protos
 )
 
+component_proto_include_directories(
+	builtin_msgs
+	BUILD_TIME
+		${CMAKE_CURRENT_SOURCE_DIR}/msgs
+	INSTALL_TIME
+		msgs
+)
+
 target_compile_definitions(
     builtin_msgs
     PRIVATE
