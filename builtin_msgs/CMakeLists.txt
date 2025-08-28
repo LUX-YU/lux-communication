@@ -50,7 +50,13 @@ add_proto_library(
     PROTOC_OUT_DIR  ${PROTO_GEN_DIR}
     EXPORT_MACRO    LUX_COMMUNICATION_PUBLIC
     INSERT_HEADERS  lux/communication/visibility.h
-    INCLUDE_DIRS    ${LUX_GENERATE_HEADER_DIR}
+)
+   
+target_include_directories(
+    builtin_msgs_protos
+    PUBLIC
+    ${LUX_GENERATE_HEADER_DIR}
+    ${PROTO_GEN_DIR}
 )
 
 target_compile_definitions(
@@ -58,6 +64,8 @@ target_compile_definitions(
     PRIVATE
         LUX_COMMUNICATION_LIBRARY
 )
+
+set_target_properties(builtin_msgs_protos PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 set(PB_ST_CONVERTER_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/timestamp.cpp

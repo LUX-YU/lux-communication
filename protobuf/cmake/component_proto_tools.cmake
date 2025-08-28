@@ -91,7 +91,7 @@ endfunction()
 # - Only accepts explicit PROTOS / IMPORT_DIRS
 # -------------------------------------------------------------------
 function(add_proto_library)
-    set(_options STATIC INDEPENDENT_CODE)
+    set(_options STATIC)
     set(_one_value_arguments
         PROTOC_OUT_DIR
         EXPORT_MACRO
@@ -104,7 +104,6 @@ function(add_proto_library)
         PROTOS
         IMPORT_DIRS
         INSERT_HEADERS
-        INCLUDE_DIRS
     )
 
     cmake_parse_arguments(
@@ -267,17 +266,6 @@ file(WRITE \"\${HEADER}\" \"\${_c}\")
         ${ALL_GEN_SRCS}
     )
     
-    target_include_directories(
-        ${_target}
-        PUBLIC
-        ${ARGS_INCLUDE_DIRS}
-        ${ARGS_PROTOC_OUT_DIR}
-    )
-
-    if(ARGS_INDEPENDENT_CODE)
-        set_target_properties(${_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    endif()
-
     # ---- Return variables to caller (provide default names) ----
     # Default variable names: <TARGET>_RESULT / <TARGET>_SRCS / <TARGET>_HDRS
     string(MAKE_C_IDENTIFIER "${_target}" _tid)
