@@ -265,7 +265,13 @@ file(WRITE \"\${HEADER}\" \"\${_c}\")
         ${_libtype}
         ${ALL_GEN_SRCS}
     )
-    
+
+    target_link_libraries(
+        ${_target} 
+        PUBLIC
+        lux::communication::protobuf
+    )
+
     # ---- Return variables to caller (provide default names) ----
     # Default variable names: <TARGET>_RESULT / <TARGET>_SRCS / <TARGET>_HDRS
     string(MAKE_C_IDENTIFIER "${_target}" _tid)
