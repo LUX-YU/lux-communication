@@ -21,6 +21,7 @@ set(BUILTIN_MSGS_PROTO_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/matrixn.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vector3.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vector4.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vector5.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/common_msgs/vectorn.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/quaternion.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/geometry_msgs/point.proto
@@ -74,6 +75,7 @@ set(PB_ST_CONVERTER_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/matrixn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vector3.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vector4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vector5.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/common_msgs/vectorn.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/quaternion.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/geometry_msgs/point.cpp

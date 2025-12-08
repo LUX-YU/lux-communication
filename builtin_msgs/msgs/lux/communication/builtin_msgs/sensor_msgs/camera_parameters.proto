@@ -3,9 +3,11 @@ syntax = "proto3";
 package lux.communication.builtin_msgs.sensor_msgs;
 
 import "lux/communication/builtin_msgs/common_msgs/matrix3.proto";
+import "lux/communication/builtin_msgs/common_msgs/vector5.proto";
 import "lux/communication/builtin_msgs/geometry_msgs/transform.proto";
 
 message CameraParameters {
 	optional lux.communication.builtin_msgs.common_msgs.Matrix3		intrinsics = 1;
 	optional lux.communication.builtin_msgs.geometry_msgs.Transform extrinsics = 2;
+	optional lux.communication.builtin_msgs.common_msgs.Vector5		distortion = 3;
 }

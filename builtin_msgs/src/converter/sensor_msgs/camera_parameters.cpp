@@ -14,11 +14,13 @@ namespace lux::communication::builtin_msgs
 	{
 		pb_st_converter::pb2st(in.intrinsics(), out.intrinsics);
 		pb_st_converter::pb2st(in.extrinsics(), out.extrinsics);
+		pb_st_converter::pb2st(in.distortion(), out.distortion);
 	}
 
 	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::st2pb(const STCameraParametersS& in, PBCameraParameters& out)
 	{
 		pb_st_converter::st2pb(in.intrinsics, *out.mutable_intrinsics());
 		pb_st_converter::st2pb(in.extrinsics, *out.mutable_extrinsics());
+		pb_st_converter::st2pb(in.distortion, *out.mutable_distortion());
 	}
 }
