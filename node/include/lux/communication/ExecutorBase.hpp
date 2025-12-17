@@ -159,6 +159,7 @@ namespace lux::communication {
 	private:
 		std::priority_queue<TimeExecEntry>  buffer_;
 		std::chrono::nanoseconds            time_offset_;
+		uint64_t                            max_timestamp_seen_{ 0 };
 	};
 
 } // namespace lux::communication

@@ -190,15 +190,16 @@ namespace lux::communication
         sub->drainAll(entries);
         for (auto& e : entries)
         {
+            if (e.timestamp_ns > max_timestamp_seen_)
+            {
+                max_timestamp_seen_ = e.timestamp_ns;
+            }
             buffer_.push(std::move(e));
         }
     }
 
     void TimeOrderedExecutor::processReadyEntries()
     {
-        auto now_tp = std::chrono::steady_clock::now();
-        auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now_tp.time_since_epoch()).count();
-
         uint64_t cutoff = 0;
         if (time_offset_.count() == 0)
         {
@@ -206,7 +207,14 @@ namespace lux::communication
         }
         else
         {
-            cutoff = now_ns - static_cast<uint64_t>(time_offset_.count());
+            if (max_timestamp_seen_ > static_cast<uint64_t>(time_offset_.count()))
+            {
+                cutoff = max_timestamp_seen_ - static_cast<uint64_t>(time_offset_.count());
+            }
+            else
+            {
+                cutoff = 0;
+            }
         }
 
         while (!buffer_.empty() && buffer_.top().timestamp_ns <= cutoff)
@@ -219,51 +227,6 @@ namespace lux::communication
 
     void TimeOrderedExecutor::doWait()
     {
-        if (buffer_.empty())
-        {
-            waitCondition();
-            return;
-        }
-
-        const auto& top = buffer_.top();
-        auto now_tp = std::chrono::steady_clock::now();
-        auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now_tp.time_since_epoch()).count();
-
-        uint64_t cutoff;
-        if (time_offset_.count() == 0)
-        {
-            cutoff = UINT64_MAX;
-        }
-        else
-        {
-            cutoff = now_ns - static_cast<uint64_t>(time_offset_.count());
-        }
-
-        if (top.timestamp_ns <= cutoff)
-        {
-            return;
-        }
-
-        uint64_t earliest_ns = 0;
-        if (time_offset_.count() == 0)
-        {
-            earliest_ns = top.timestamp_ns - now_ns;
-        }
-        else
-        {
-            earliest_ns = (top.timestamp_ns + static_cast<uint64_t>(time_offset_.count())) - now_ns;
-        }
-
-        auto wait_dur = std::chrono::nanoseconds(earliest_ns);
-        if (wait_dur >= std::chrono::steady_clock::duration::max())
-        {
-            waitCondition();
-            return;
-        }
-
-        std::unique_lock<std::mutex> lk(cv_mutex_);
-        cv_.wait_for(lk, wait_dur,
-            [this] { return !spinning_.load() || !buffer_.empty(); }
-        );
+        return;
     }
 } // namespace lux::communication

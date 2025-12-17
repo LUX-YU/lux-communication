@@ -1,4 +1,4 @@
-find_package(Protobuf REQUIRED)
+find_package(protobuf CONFIG REQUIRED)
 
 add_interface_component(
 	COMPONENT_NAME 	protobuf

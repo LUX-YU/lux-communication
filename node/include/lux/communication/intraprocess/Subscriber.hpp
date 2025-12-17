@@ -65,12 +65,10 @@ namespace lux::communication::intraprocess
                 callback_func_(msg);
             }
 
-            // if (queue_.size_approx() == 0)
-            //     clearReady();
-            // else
-            //     callbackGroup()->notify(this);
-
             clearReady();
+
+            if (queue_.size_approx() > 0)
+                callbackGroup()->notify(this);
         }
 
     private:
@@ -101,6 +99,11 @@ namespace lux::communication::intraprocess
             else{
                 throw std::runtime_error("Subscriber<T> does not support non-stamped message type T");
             }
+
+            clearReady();
+
+            if (queue_.size_approx() > 0)
+                callbackGroup()->notify(this);
         }
 
     private:
