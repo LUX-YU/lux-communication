@@ -38,6 +38,7 @@ set(BUILTIN_MSGS_PROTO_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/image_group.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/image_group_stamped.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/imu.proto
+    ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/imu_parameters.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/imu_stamped.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/navsat.proto
     ${CMAKE_CURRENT_SOURCE_DIR}/msgs/lux/communication/builtin_msgs/sensor_msgs/navsat_stamped.proto
@@ -93,6 +94,7 @@ set(PB_ST_CONVERTER_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/image_group.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/image_group_stamped.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/imu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/imu_parameters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/imu_stamped.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/navsat.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/converter/sensor_msgs/navsat_stamped.cpp

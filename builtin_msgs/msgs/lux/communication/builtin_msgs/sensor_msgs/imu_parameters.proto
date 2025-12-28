@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package lux.communication.builtin_msgs.sensor_msgs;
+
+import "lux/communication/builtin_msgs/geometry_msgs/transform.proto";
+
+message ImuParameters {
+	optional lux.communication.builtin_msgs.geometry_msgs.Transform extrinsics = 1;
+	optional double rate_hz = 2;
+	optional double	gyroscope_noise_density = 3;    
+	optional double	gyroscope_random_walk = 4; 
+	optional double	accelerometer_noise_density = 5;
+	optional double	accelerometer_random_walk = 6;
+}

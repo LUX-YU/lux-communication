@@ -1,6 +1,4 @@
 #pragma once
-#include <lux/communication/visibility.h>
-
 #include "lux/communication/builtin_msgs/common_msgs/matrix3.st.h"
 #include "lux/communication/builtin_msgs/common_msgs/vector2.st.h"
 #include "lux/communication/builtin_msgs/common_msgs/vector5.st.h"

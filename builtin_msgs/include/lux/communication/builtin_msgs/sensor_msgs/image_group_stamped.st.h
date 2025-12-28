@@ -16,4 +16,3 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		ImagePairS				images;
 	};
 }
-
