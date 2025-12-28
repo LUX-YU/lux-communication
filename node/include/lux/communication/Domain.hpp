@@ -2,6 +2,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include <atomic>
 #include <string>
 #include <typeindex>
 #include <unordered_map>
@@ -46,6 +47,7 @@ namespace lux::communication
 
             // Create a new Topic
             auto new_topic = std::make_shared<TopicType>(std::forward<Args>(args)...);
+			new_topic->setDomain(this);
 			new_topic->setTopicName(topicName);
 			new_topic->setTypeInfo(type_info);
             auto topic_idx = topics_.insert(new_topic);
@@ -65,8 +67,22 @@ namespace lux::communication
             return default_domain_instance;
         }
 
+        /**
+         * @brief Allocate a range of consecutive sequence numbers for ordered message delivery.
+         * @param n Number of sequence numbers to allocate
+         * @return The base sequence number (first of the allocated range)
+         */
+        uint64_t allocateSeqRange(size_t n)
+        {
+            if (n == 0) return 0;
+            return global_seq_.fetch_add(static_cast<uint64_t>(n), std::memory_order_relaxed);
+        }
+
     private:
         size_t id_;
+
+        // Global sequence counter for ordered message delivery
+        std::atomic<uint64_t> global_seq_{ 1 };
 
         // Store all Topics
         lux::cxx::AutoSparseSet<std::weak_ptr<TopicBase>> topics_;

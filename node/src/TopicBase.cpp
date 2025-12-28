@@ -14,44 +14,44 @@ namespace lux::communication
 	void TopicBase::addPublisher(PublisherBase* pub)
 	{
 		std::lock_guard lck(mutex_pub_);
-		if (publishers_.contains(pub->idInNode()))
+		if (publishers_.contains(pub->idInTopic()))
 		{
 			return;
 		}
 		auto idx = publishers_.insert(pub);
-		pub->setIdInNode(idx);
+		pub->setIdInTopic(idx);
 	}
 
 	void TopicBase::addSubscriber(SubscriberBase* sub)
 	{
 		std::lock_guard lck(mutex_sub_);
-		if (subscribers_.contains(sub->idInNode()))
+		if (subscribers_.contains(sub->idInTopic()))
 		{
 			return;
 		}
 		auto idx = subscribers_.insert(sub);
-		sub->setIdInNode(idx);
+		sub->setIdInTopic(idx);
 	}
 
 	void TopicBase::removePublisher(PublisherBase* pub)
 	{
 		std::lock_guard lck(mutex_pub_);
-		if (!publishers_.contains(pub->idInNode()))
+		if (!publishers_.contains(pub->idInTopic()))
 		{
-			return; // CallbackGroup not found
+			return; // Publisher not found
 		}
-		publishers_.erase(pub->idInNode());
-		pub->setIdInNode(invalid_id);
+		publishers_.erase(pub->idInTopic());
+		pub->setIdInTopic(invalid_id);
 	}
 
 	void TopicBase::removeSubscriber(SubscriberBase* sub)
 	{
 		std::lock_guard lck(mutex_sub_);
-		if (!subscribers_.contains(sub->idInNode()))
+		if (!subscribers_.contains(sub->idInTopic()))
 		{
-			return; // CallbackGroup not found
+			return; // Subscriber not found
 		}
-		subscribers_.erase(sub->idInNode());
-		sub->setIdInNode(invalid_id);
+		subscribers_.erase(sub->idInTopic());
+		sub->setIdInTopic(invalid_id);
 	}
 }

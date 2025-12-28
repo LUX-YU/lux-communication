@@ -6,6 +6,7 @@
 #include <cassert>
 #include <memory>
 #include <lux/communication/TopicBase.hpp>
+#include <lux/communication/Domain.hpp>
 #include <lux/communication/Queue.hpp>
 
 namespace lux::communication::intraprocess
@@ -25,32 +26,30 @@ namespace lux::communication::intraprocess
         ~Topic() override = default;
 
         /**
-         * @brief Distribute messages (zero-copy)
-         *        Just atomically load subs_ and iterate, no locking needed
+         * @brief Distribute messages (zero-copy) with global sequence numbers
+         *        Each subscriber receives a unique sequence number for strict ordering
          */
         void publish(message_t<T> msg)
         {
-			// fast path: if only one subscriber, just move the message
+            // Get all subscribers
+            std::vector<SubscriberBase*> subs;
             {
                 std::scoped_lock lck(TopicBase::mutex_sub_);
-                if (TopicBase::subscribers_.size() == 1)
-                {
-                    auto sub = static_cast<Subscriber<T>*>(TopicBase::subscribers_.at(0));
-                    if (sub)
-                    {
-                        sub->enqueue(std::move(msg));
-                        return;  // Early exit
-                    }
-                }
+                subs = TopicBase::subscribers_.values();
             }
 
-            TopicBase::foreachSubscriber(
-                [&msg](SubscriberBase* sub_base)
-                {
-                    auto sub = static_cast<Subscriber<T>*>(sub_base);
-                    sub->enqueue(msg);
-                }
-            );
+            const size_t n = subs.size();
+            if (n == 0) return;
+
+            // Allocate a range of consecutive sequence numbers
+            const uint64_t base = this->domain().allocateSeqRange(n);
+
+            // Distribute message with consecutive sequence numbers
+            for (size_t i = 0; i < n; ++i)
+            {
+                auto sub = static_cast<Subscriber<T>*>(subs[i]);
+                sub->enqueue(base + static_cast<uint64_t>(i), msg);
+            }
         }
     };
 } // namespace lux::communication::intraprocess

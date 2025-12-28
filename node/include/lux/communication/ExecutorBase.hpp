@@ -16,7 +16,15 @@
 #include <lux/communication/Queue.hpp>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 #include <lux/communication/visibility.h>
-#include <lux/cxx/concurrent/ThreadPool.hpp>
+#include <lux/cxx/container/SparseSet.hpp>
+
+#if __has_include(<moodycamel/concurrentqueue.h>)
+#   include <moodycamel/concurrentqueue.h>
+#elif __has_include(<concurrentqueue/moodycamel/concurrentqueue.h>)
+#   include <concurrentqueue/moodycamel/concurrentqueue.h>
+#elif __has_include(<concurrentqueue/concurrentqueue.h>)
+#   include <concurrentqueue/concurrentqueue.h>
+#endif
 
 namespace lux::communication {
 
@@ -71,7 +79,7 @@ namespace lux::communication {
 		SubscriberBase* waitOneReady()
 		{
 			ready_sem_.acquire();
-			SubscriberBase* sub;
+			SubscriberBase* sub = nullptr;
 			ready_queue_.try_dequeue(sub);
 			return sub;
 		}
@@ -79,7 +87,7 @@ namespace lux::communication {
 		SubscriberBase* waitOneReadyTimeout(std::chrono::milliseconds timeout)
 		{
 			if (ready_sem_.try_acquire_for(timeout)) {
-				SubscriberBase* sub;
+				SubscriberBase* sub = nullptr;
 				ready_queue_.try_dequeue(sub);
 				return sub;
 			}
@@ -109,57 +117,6 @@ namespace lux::communication {
 		std::atomic<bool>						spinning_;
 		std::mutex								cv_mutex_;
 		std::condition_variable					cv_;
-	};
-
-	class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public ExecutorBase
-	{
-	public:
-		SingleThreadedExecutor() = default;
-		~SingleThreadedExecutor() override;
-
-		bool spinSome() override;
-		void handleSubscriber(SubscriberBase* sub) override;
-	};
-
-	class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public ExecutorBase
-	{
-	public:
-		explicit MultiThreadedExecutor(size_t threadNum = 2);
-		~MultiThreadedExecutor() override;
-
-		bool spinSome() override;
-		void stop() override;
-		void handleSubscriber(SubscriberBase* sub) override;
-
-	private:
-		lux::cxx::ThreadPool thread_pool_;
-	};
-
-	class LUX_COMMUNICATION_PUBLIC TimeOrderedExecutor : public ExecutorBase
-	{
-	public:
-		explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{ 0 });
-		~TimeOrderedExecutor() override;
-
-		bool spinSome() override;
-		void spin() override;
-		void stop() override;
-
-		void setTimeOffset(std::chrono::nanoseconds offset);
-		std::chrono::nanoseconds getTimeOffset() const;
-
-	protected:
-		bool checkRunnable() override;
-		void handleSubscriber(SubscriberBase* sub) override;
-
-	private:
-		void processReadyEntries();
-		void doWait();
-
-	private:
-		std::priority_queue<TimeExecEntry>  buffer_;
-		std::chrono::nanoseconds            time_offset_;
-		uint64_t                            max_timestamp_seen_{ 0 };
 	};
 
 } // namespace lux::communication

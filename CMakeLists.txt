@@ -17,6 +17,11 @@ generate_visibility_header(
     GENERATE_FILE_PATH lux/communication/visibility.h
 )
 
+# For debugging purposes, set all output binaries to a common directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
 add_subdirectory(protobuf)
 add_subdirectory(builtin_msgs)
 add_subdirectory(node)

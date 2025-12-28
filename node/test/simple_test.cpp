@@ -2,7 +2,7 @@
 #include <lux/communication/intraprocess/Node.hpp>
 #include <lux/communication/intraprocess/Publisher.hpp>
 #include <lux/communication/intraprocess/Subscriber.hpp>
-#include <lux/communication/ExecutorBase.hpp>
+#include <lux/communication/executor/SingleThreadedExecutor.hpp>
 
 int main()
 {

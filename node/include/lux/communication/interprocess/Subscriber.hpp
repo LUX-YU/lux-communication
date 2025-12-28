@@ -140,6 +140,48 @@ namespace lux::communication::interprocess
                 throw std::runtime_error("Subscriber<T> does not support non-stamped message type T");
             }
         }
+
+        // Static trampoline function for ExecEntry (avoids std::function overhead)
+        static void invokeTrampoline(void* obj, const std::shared_ptr<void>& msg) {
+            auto* self = static_cast<Subscriber<T>*>(obj);
+            auto typed_msg = std::static_pointer_cast<T>(msg);
+            if (self->callback_) {
+                self->callback_(*typed_msg);
+            }
+        }
+
+        // High-performance drain using function pointer trampoline
+        void drainAllExec(std::vector<lux::communication::ExecEntry>& out) override
+        {
+            // Delegate to drainExecSome with unlimited count
+            drainExecSome(out, SIZE_MAX);
+        }
+
+        // Bounded drain for interprocess (uses timestamp as seq)
+        size_t drainExecSome(std::vector<lux::communication::ExecEntry>& out, size_t max_count) override
+        {
+            if constexpr(lux::communication::is_msg_stamped<T>)
+            {
+                size_t count = 0;
+                message_t<T> msg;
+                while (count < max_count && try_pop(queue_, msg))
+                {
+                    uint64_t ts_ns = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*msg);
+                    lux::communication::ExecEntry e;
+                    e.seq = ts_ns;
+                    e.obj = this;
+                    e.invoke = &Subscriber<T>::invokeTrampoline;
+                    e.msg = std::static_pointer_cast<void>(msg);
+                    out.push_back(std::move(e));
+                    ++count;
+                }
+                return count;
+            }
+            else
+            {
+                throw std::runtime_error("Subscriber<T> does not support non-stamped message type T");
+            }
+        }
     
         std::string                         endpoint_;
         std::unique_ptr<SubscriberSocket>   socket_;

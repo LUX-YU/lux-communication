@@ -8,6 +8,10 @@ set(LUX_COMMUNICATION_NODE_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/src/TopicBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/CallbackGroupBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/ExecutorBase.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/executor/SingleThreadedExecutor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/executor/MultiThreadedExecutor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/executor/TimeOrderedExecutor.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/executor/SeqOrderedExecutor.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/NodeBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/PublisherBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/SubscriberBase.cpp

@@ -25,6 +25,9 @@ namespace lux::communication
 
         virtual ~TopicBase();
 
+		Domain& domain() { return *domain_; }
+		const Domain& domain() const { return *domain_; }
+
 		const std::string& name() const
 		{
 			return topic_name_;
@@ -42,6 +45,11 @@ namespace lux::communication
 		}
 
     protected:
+		void setDomain(Domain* d)
+		{
+			domain_ = d;
+		}
+
 		void setTopicName(const std::string& name)
 		{
 			topic_name_ = name;
@@ -81,6 +89,8 @@ namespace lux::communication
     protected:
 		using PubSet = lux::cxx::AutoSparseSet<PublisherBase*>;
 		using SubSet = lux::cxx::AutoSparseSet<SubscriberBase*>;
+
+		Domain*						domain_{ nullptr };
 
 		mutable std::mutex			mutex_pub_;
 		mutable std::mutex			mutex_sub_;
