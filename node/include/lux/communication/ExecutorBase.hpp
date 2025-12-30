@@ -8,7 +8,6 @@
 #include <atomic>
 #include <memory>
 #include <thread>
-#include <queue>
 #include <chrono>
 
 #include <lux/communication/TimeExecEntry.hpp>
@@ -17,14 +16,6 @@
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 #include <lux/communication/visibility.h>
 #include <lux/cxx/container/SparseSet.hpp>
-
-#if __has_include(<moodycamel/concurrentqueue.h>)
-#   include <moodycamel/concurrentqueue.h>
-#elif __has_include(<concurrentqueue/moodycamel/concurrentqueue.h>)
-#   include <concurrentqueue/moodycamel/concurrentqueue.h>
-#elif __has_include(<concurrentqueue/concurrentqueue.h>)
-#   include <concurrentqueue/concurrentqueue.h>
-#endif
 
 namespace lux::communication {
 
