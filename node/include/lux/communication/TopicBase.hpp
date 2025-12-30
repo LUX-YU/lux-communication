@@ -14,6 +14,9 @@ namespace lux::communication
 	class PublisherBase;
 	class SubscriberBase;
 
+	// Subscriber snapshot type for Copy-On-Write (lock-free read)
+	using SubscriberSnapshot = std::shared_ptr<const std::vector<SubscriberBase*>>;
+
     class LUX_COMMUNICATION_PUBLIC TopicBase
     {
 		friend class Domain;
@@ -44,6 +47,15 @@ namespace lux::communication
 			return type_info_;
 		}
 
+		/**
+		 * @brief Get a snapshot of current subscribers (lock-free read).
+		 *        The returned snapshot is immutable and safe to iterate.
+		 */
+		SubscriberSnapshot getSubscriberSnapshot() const
+		{
+			return sub_snapshot_.load(std::memory_order_acquire);
+		}
+
     protected:
 		void setDomain(Domain* d)
 		{
@@ -71,18 +83,22 @@ namespace lux::communication
 		void removePublisher(PublisherBase*);
 		void removeSubscriber(SubscriberBase*);
 
+		/**
+		 * @brief Rebuild the subscriber snapshot (called under mutex_sub_ lock).
+		 */
+		void rebuildSubscriberSnapshot();
+
 		template<typename Func>
 		void foreachSubscriber(Func&& func)
 		{
-			std::vector<SubscriberBase*> sub_buffers;
+			// Lock-free read of snapshot (Copy-On-Write)
+			auto snapshot = sub_snapshot_.load(std::memory_order_acquire);
+			if (snapshot)
 			{
-				std::scoped_lock lck(mutex_sub_);
-				sub_buffers = subscribers_.values();
-			}
-			
-			for (auto sub : sub_buffers)
-			{
-				func(sub);
+				for (auto sub : *snapshot)
+				{
+					func(sub);
+				}
 			}
 		}
 
@@ -97,6 +113,9 @@ namespace lux::communication
 
 		PubSet						publishers_;
 		SubSet						subscribers_;
+
+		// Copy-On-Write subscriber snapshot (lock-free read, locked write)
+		std::atomic<SubscriberSnapshot>	sub_snapshot_;
 
 		lux::cxx::basic_type_info	type_info_;
 		size_t						id_in_domain_{std::numeric_limits<size_t>::max()};

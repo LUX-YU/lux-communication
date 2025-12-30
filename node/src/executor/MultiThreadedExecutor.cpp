@@ -14,16 +14,15 @@ namespace lux::communication
         stop();
     }
 
-    bool MultiThreadedExecutor::spinSome()
+    void MultiThreadedExecutor::spinSome()
     {
         auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
         if (!spinning_)
-            return false;
+            return;
         if (sub)
         {
             handleSubscriber(std::move(sub));
         }
-        return spinning_;
     }
 
     void MultiThreadedExecutor::handleSubscriber(SubscriberBase* sub)

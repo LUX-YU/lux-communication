@@ -4,7 +4,7 @@
 
 namespace lux::communication 
 {  
-    ExecutorBase::ExecutorBase() : spinning_(true) {}
+    ExecutorBase::ExecutorBase() : spinning_(false) {}
     ExecutorBase::~ExecutorBase() { stop(); }
 
     void ExecutorBase::addNode(NodeBase* node)

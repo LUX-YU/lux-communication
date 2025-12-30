@@ -10,7 +10,7 @@ namespace lux::communication {
 		SingleThreadedExecutor() = default;
 		~SingleThreadedExecutor() override;
 
-		bool spinSome() override;
+		void spinSome() override;
 		void handleSubscriber(SubscriberBase* sub) override;
 	};
 

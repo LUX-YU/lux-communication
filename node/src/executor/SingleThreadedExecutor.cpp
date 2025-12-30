@@ -8,17 +8,16 @@ namespace lux::communication
         stop();
     }
 
-    bool SingleThreadedExecutor::spinSome()
+    void SingleThreadedExecutor::spinSome()
     {
         if (!spinning_) {
-            return false;
+            return;
         }
         auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
         if (sub)
         {
             handleSubscriber(std::move(sub));
         }
-        return spinning_;
     }
 
     void SingleThreadedExecutor::handleSubscriber(SubscriberBase* sub)

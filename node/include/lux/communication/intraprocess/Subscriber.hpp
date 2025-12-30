@@ -69,7 +69,7 @@ namespace lux::communication::intraprocess
 #endif
 
     public:
-        using Callback = std::function<void(const message_t<T>)>;
+        using Callback = std::function<void(message_t<T>)>;  // Non-const to enable move
 
         template<typename Func>
         Subscriber(const std::string& topic, Node* node, Func&& func, CallbackGroupBase* cgb = nullptr)
@@ -138,10 +138,10 @@ namespace lux::communication::intraprocess
         }
 
         // Static trampoline function for ExecEntry (avoids std::function overhead)
-        static void invokeTrampoline(void* obj, const std::shared_ptr<void>& msg) {
+        static void invokeTrampoline(void* obj, std::shared_ptr<void> msg) {
             auto* self = static_cast<Subscriber<T>*>(obj);
-            auto typed_msg = std::static_pointer_cast<T>(msg);
-            self->callback_func_(typed_msg);
+            auto typed_msg = std::static_pointer_cast<T>(std::move(msg));
+            self->callback_func_(std::move(typed_msg));  // Move to callback
         }
 
         // High-performance drain using function pointer trampoline and bulk dequeue

@@ -26,20 +26,26 @@ namespace lux::communication::intraprocess
         ~Topic() override = default;
 
         /**
-         * @brief Distribute messages (zero-copy) with global sequence numbers
-         *        Each subscriber receives a unique sequence number for strict ordering
+         * @brief Distribute messages (zero-copy) with global sequence numbers.
+         *        Uses Copy-On-Write snapshot for lock-free subscriber iteration.
          */
         void publish(message_t<T> msg)
         {
-            // Get all subscribers
-            std::vector<SubscriberBase*> subs;
-            {
-                std::scoped_lock lck(TopicBase::mutex_sub_);
-                subs = TopicBase::subscribers_.values();
-            }
+            // Lock-free read of subscriber snapshot (Copy-On-Write)
+            auto snapshot = this->getSubscriberSnapshot();
+            if (!snapshot || snapshot->empty()) return;
 
-            const size_t n = subs.size();
-            if (n == 0) return;
+            const size_t n = snapshot->size();
+
+            // Fast path: single subscriber, just move the message
+            if (n == 1)
+            {
+                auto sub = static_cast<Subscriber<T>*>((*snapshot)[0]);
+                // Single subscriber gets seq from domain with n=1
+                const uint64_t seq = this->domain().allocateSeqRange(1);
+                sub->enqueue(seq, std::move(msg));
+                return;
+            }
 
             // Allocate a range of consecutive sequence numbers
             const uint64_t base = this->domain().allocateSeqRange(n);
@@ -47,7 +53,7 @@ namespace lux::communication::intraprocess
             // Distribute message with consecutive sequence numbers
             for (size_t i = 0; i < n; ++i)
             {
-                auto sub = static_cast<Subscriber<T>*>(subs[i]);
+                auto sub = static_cast<Subscriber<T>*>((*snapshot)[i]);
                 sub->enqueue(base + static_cast<uint64_t>(i), msg);
             }
         }

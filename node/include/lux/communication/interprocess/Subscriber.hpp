@@ -142,9 +142,9 @@ namespace lux::communication::interprocess
         }
 
         // Static trampoline function for ExecEntry (avoids std::function overhead)
-        static void invokeTrampoline(void* obj, const std::shared_ptr<void>& msg) {
+        static void invokeTrampoline(void* obj, std::shared_ptr<void> msg) {
             auto* self = static_cast<Subscriber<T>*>(obj);
-            auto typed_msg = std::static_pointer_cast<T>(msg);
+            auto typed_msg = std::static_pointer_cast<T>(std::move(msg));
             if (self->callback_) {
                 self->callback_(*typed_msg);
             }

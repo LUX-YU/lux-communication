@@ -41,7 +41,7 @@ namespace lux::communication {
 		virtual void addNode(NodeBase* node);
 		virtual void removeNode(NodeBase* node);
 
-		virtual bool spinSome() = 0;
+		virtual void spinSome() = 0;
 		virtual void handleSubscriber(SubscriberBase* sub) = 0;
 
 		virtual void spin()
@@ -114,7 +114,7 @@ namespace lux::communication {
 		void			notifyCondition();
 		virtual bool	checkRunnable();
 
-		std::atomic<bool>						spinning_;
+		std::atomic<bool>						spinning_{ false };
 		std::mutex								cv_mutex_;
 		std::condition_variable					cv_;
 	};

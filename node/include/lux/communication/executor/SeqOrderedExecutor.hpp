@@ -22,7 +22,7 @@ namespace lux::communication {
 		SeqOrderedExecutor() = default;
 		~SeqOrderedExecutor() override;
 
-		bool spinSome() override;
+		void spinSome() override;
 		void spin() override;
 		void stop() override;
 
@@ -65,7 +65,8 @@ namespace lux::communication {
 
 	private:
 		// Max entries to drain per subscriber (bounded drain for round-robin)
-		static constexpr size_t kMaxDrainPerSubscriber = 256;
+		// Kept small to minimize reorder window and avoid fallback hashmap
+		static constexpr size_t kMaxDrainPerSubscriber = 16;
 
 		ReorderBuffer buffer_;         // Ring buffer with O(1) reordering + fallback
 		

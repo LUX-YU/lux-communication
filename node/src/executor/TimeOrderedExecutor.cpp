@@ -14,11 +14,11 @@ namespace lux::communication
         stop();
     }
 
-    bool TimeOrderedExecutor::spinSome()
+    void TimeOrderedExecutor::spinSome()
     {
         if (!spinning_)
         {
-            return false;
+            return;
         }
         auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
         if (sub)
@@ -26,7 +26,6 @@ namespace lux::communication
             handleSubscriber(sub);
         }
         processReadyEntries();
-        return spinning_;
     }
 
     void TimeOrderedExecutor::spin()

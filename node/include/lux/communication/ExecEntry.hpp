@@ -13,14 +13,14 @@ namespace lux::communication {
     struct ExecEntry {
         uint64_t seq;
         void* obj;  // Subscriber pointer (type-erased)
-        void (*invoke)(void* obj, const std::shared_ptr<void>& msg);
+        void (*invoke)(void* obj, std::shared_ptr<void> msg);  // Takes by value for move semantics
         std::shared_ptr<void> msg;
 
         ExecEntry() noexcept
             : seq(0), obj(nullptr), invoke(nullptr), msg(nullptr) {}
 
-        ExecEntry(uint64_t s, void* o, 
-                  void (*inv)(void*, const std::shared_ptr<void>&),
+        ExecEntry(uint64_t s, void* o,
+                  void (*inv)(void*, std::shared_ptr<void>),
                   std::shared_ptr<void> m) noexcept
             : seq(s), obj(o), invoke(inv), msg(std::move(m)) {}
 
@@ -30,9 +30,9 @@ namespace lux::communication {
         ExecEntry(const ExecEntry&) = delete;
         ExecEntry& operator=(const ExecEntry&) = delete;
 
-        void execute() const noexcept {
+        void execute() noexcept {
             if (invoke) {
-                invoke(obj, msg);
+                invoke(obj, std::move(msg));  // Move msg to avoid refcount bump
             }
         }
 

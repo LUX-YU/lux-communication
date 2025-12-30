@@ -211,7 +211,7 @@ int main()
 
     if (order_correct && received_orders.size() == static_cast<size_t>(total_messages))
     {
-        std::cout << "✅ SUCCESS: All " << total_messages 
+        std::cout << "SUCCESS: All " << total_messages 
                   << " messages received in correct sequence order!" << std::endl;
         
         // Additional check: verify sequence is strictly increasing
@@ -228,11 +228,11 @@ int main()
         
         if (strictly_increasing)
         {
-            std::cout << "✅ Sequence is strictly increasing." << std::endl;
+            std::cout << "Sequence is strictly increasing." << std::endl;
         }
         else
         {
-            std::cout << "⚠️  Sequence has " << non_increasing_count 
+            std::cout << "Sequence has " << non_increasing_count 
                       << " non-increasing transitions (possible duplicates)." << std::endl;
         }
 
@@ -240,7 +240,7 @@ int main()
     }
     else
     {
-        std::cout << "❌ FAILURE: Messages received out of order!" << std::endl;
+        std::cout << "FAILURE: Messages received out of order!" << std::endl;
         std::cout << "   Total order violations: " << error_count << std::endl;
         
         if (first_error_idx >= 0)

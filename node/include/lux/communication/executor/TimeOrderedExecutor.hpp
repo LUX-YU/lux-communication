@@ -13,7 +13,7 @@ namespace lux::communication {
 		explicit TimeOrderedExecutor(std::chrono::nanoseconds time_offset = std::chrono::nanoseconds{ 0 });
 		~TimeOrderedExecutor() override;
 
-		bool spinSome() override;
+		void spinSome() override;
 		void spin() override;
 		void stop() override;
 

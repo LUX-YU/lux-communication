@@ -1,5 +1,5 @@
 #include "lux/communication/intraprocess/Node.hpp"
-#include "lux/communication/executor/SeqOrderedExecutor.hpp"
+#include "lux/communication/executor/SingleThreadedExecutor.hpp"
 #include "lux/communication/CallbackGroupBase.hpp"
 
 namespace lux::communication::intraprocess {
@@ -18,9 +18,9 @@ namespace lux::communication::intraprocess {
         return default_callbackgroup_.get();
     }
 
-    static SeqOrderedExecutor& default_executor()
+    static SingleThreadedExecutor& default_executor()
     {
-        static SeqOrderedExecutor instance;
+        static SingleThreadedExecutor instance;
         return instance;
     }
 
@@ -36,7 +36,9 @@ namespace lux::communication::intraprocess {
     {
         auto& exec = default_executor();
         exec.addNode(node);
-        while (flag && exec.spinSome());
+        while (flag) {
+            exec.spinSome();
+        }
         exec.removeNode(node);
     }
 

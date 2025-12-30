@@ -63,11 +63,8 @@ namespace lux::communication
         }
     }
 
-    bool SeqOrderedExecutor::spinSome()
+    void SeqOrderedExecutor::spinSome()
     {
-        if (!spinning_)
-            return false;
-
         bool made_progress = false;
 
         // Strategy: "Execute first, drain on gap"
@@ -106,11 +103,8 @@ namespace lux::communication
             {
                 drainOneSubscriber(sub);
                 executeConsecutive();
-                made_progress = true;
             }
         }
-
-        return spinning_;
     }
 
     void SeqOrderedExecutor::handleSubscriber(SubscriberBase* sub)
@@ -147,7 +141,7 @@ namespace lux::communication
         // Execute as many consecutive entries as available
         while (buffer_.try_pop_next(entry))
         {
-            entry.invoke(entry.obj, entry.msg);
+            entry.invoke(entry.obj, std::move(entry.msg));  // Move msg to avoid refcount
             ++executed;
         }
         

@@ -11,7 +11,7 @@ namespace lux::communication {
 		explicit MultiThreadedExecutor(size_t threadNum = 2);
 		~MultiThreadedExecutor() override;
 
-		bool spinSome() override;
+		void spinSome() override;
 		void stop() override;
 		void handleSubscriber(SubscriberBase* sub) override;
 
