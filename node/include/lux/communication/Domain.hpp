@@ -4,9 +4,7 @@
 #include <mutex>
 #include <atomic>
 #include <string>
-#include <typeindex>
 #include <unordered_map>
-#include <cassert>
 #include <functional>
 #include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/cxx/container/SparseSet.hpp>

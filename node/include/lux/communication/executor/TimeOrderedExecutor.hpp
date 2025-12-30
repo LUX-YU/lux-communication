@@ -1,7 +1,6 @@
 #pragma once
 
 #include <queue>
-#include <chrono>
 #include <lux/communication/ExecutorBase.hpp>
 #include <lux/communication/TimeExecEntry.hpp>
 

@@ -1,66 +1,45 @@
 #pragma once
 
 #include <memory>
-#include <string>
-
 #include <vector>
 #include <functional>
-#include <atomic>
 
-#include <lux/communication/NodeBase.hpp>
-#include <lux/communication/CallbackGroup.hpp>
-#include <lux/communication/interprocess/Publisher.hpp>
-#include <lux/communication/interprocess/Subscriber.hpp>
-#include <lux/communication/Executor.hpp>
-#include <lux/communication/Domain.hpp>
 #include <lux/communication/visibility.h>
+#include <lux/communication/Domain.hpp>
+#include <lux/communication/NodeBase.hpp>
 
-namespace lux::communication::interprocess 
+namespace lux::communication
 {
-    class LUX_COMMUNICATION_PUBLIC Node
-		: public lux::communication::TNodeBase<Node>, 
-          public std::enable_shared_from_this<Node>
+    class CallbackGroupBase;
+}
+
+namespace lux::communication::interprocess
+{
+    template<typename T> class Publisher;
+    template<typename T> class Subscriber;
+
+    using lux::communication::Domain;
+
+    class LUX_COMMUNICATION_PUBLIC Node : public lux::communication::NodeBase
     {
+        template<typename T> friend class Publisher;
+        template<typename T> friend class Subscriber;
     public:
-        explicit Node(const std::string& name, std::shared_ptr<lux::communication::Domain> domain = default_domain());
-    
+        explicit Node(const std::string& node_name, Domain& domain = Domain::default_domain());
+
         ~Node();
-    
-        template<typename T>
-        std::shared_ptr<Publisher<T>> createPublisher(const std::string& topic)
-        {
-            return std::make_shared<Publisher<T>>(topic);
-        }
-    
-        template<typename T, typename Callback>
-        std::shared_ptr<Subscriber<T>> createSubscriber(
-            const std::string& topic, Callback&& cb,
-            std::shared_ptr<lux::communication::CallbackGroup> group = nullptr)
-        {
-            if (!group)
-            {
-                group = default_callback_group();
-            }
 
-			auto topic_ptr = domain_->createOrGetTopic<ITopicHolder, T>(topic);
+        CallbackGroupBase* defaultCallbackGroup();
 
-            auto sub = std::make_shared<Subscriber<T>>(
-                shared_from_this(),
-                topic_ptr,
-                std::forward<Callback>(cb), 
-                group
-            );
-           
-            subscriber_stoppers_.emplace_back([s=sub]{ s->stop(); });
-            return sub;
-        }
-    
         void stop();
-    
+
     private:
-        std::string name_;
+        std::unique_ptr<lux::communication::CallbackGroupBase> default_callbackgroup_;
         std::vector<std::function<void()>> subscriber_stoppers_;
-        int next_sub_id_{0};
-    }; 
+    };
+
+    LUX_COMMUNICATION_PUBLIC void spin(Node*);
+    LUX_COMMUNICATION_PUBLIC void spinUntil(Node*, bool& flag);
+    LUX_COMMUNICATION_PUBLIC void stopSpin();
 
 } // namespace lux::communication::interprocess

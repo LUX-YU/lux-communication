@@ -1,25 +1,24 @@
 #pragma once
 
-#include <memory>
-#include <string>
 #include <thread>
 #include <functional>
 #include <atomic>
 #include <optional>
+#include <chrono>
 
-#include <lux/communication/visibility.h>
-#include "lux/communication/ITopicHolder.hpp"
-#include "lux/communication/interprocess/Publisher.hpp"
-#include "lux/communication/UdpMultiCast.hpp"
 #include <lux/communication/Queue.hpp>
 #include <lux/communication/SubscriberBase.hpp>
-#include <lux/communication/CallbackGroup.hpp>
+#include <lux/communication/CallbackGroupBase.hpp>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
+
+#include "Node.hpp"
+
+#if __has_include(<moodycamel/concurrentqueue.h>) || __has_include(<concurrentqueue/moodycamel/concurrentqueue.h>) || __has_include(<concurrentqueue/concurrentqueue.h>)
+#   define LUX_INTERPROCESS_SUBSCRIBER_USE_LOCKFREE_QUEUE
+#endif
 
 namespace lux::communication::interprocess 
 {
-    class Node;
-
     class SubscriberSocket
     {
     public:
@@ -28,26 +27,57 @@ namespace lux::communication::interprocess
         virtual bool receive(void* data, size_t size) = 0;
     };
 
-    std::unique_ptr<SubscriberSocket> createSubscriberSocket();
-
-    std::string defaultEndpoint(const std::string& topic);
-
-    std::optional<std::string> waitDiscovery(const std::string& topic,
+    LUX_COMMUNICATION_PUBLIC std::unique_ptr<SubscriberSocket> createSubscriberSocket();
+    LUX_COMMUNICATION_PUBLIC std::string defaultEndpoint(const std::string& topic);
+    LUX_COMMUNICATION_PUBLIC std::optional<std::string> waitDiscovery(
+        const std::string& topic,
         std::chrono::milliseconds timeout = std::chrono::milliseconds{200});
-    
+
+    /**
+     * @brief Interprocess Subscriber - receives messages via network socket.
+     *        Follows the same pattern as intraprocess::Subscriber.
+     */
     template<typename T>
-	class Subscriber : public lux::communication::TSubscriberBase<T>
+    class Subscriber : public lux::communication::SubscriberBase
     {
+        static CallbackGroupBase* getCallbackGroup(CallbackGroupBase* cgb, Node* node)
+        {
+            return cgb == nullptr ? node->defaultCallbackGroup() : cgb;
+        }
+
+        // Ordered item: (sequence number, message)
+        struct OrderedItem {
+            uint64_t seq;
+            message_t<T> msg;
+        };
+
+#ifdef LUX_INTERPROCESS_SUBSCRIBER_USE_LOCKFREE_QUEUE
+        using ordered_queue_t = moodycamel::ConcurrentQueue<OrderedItem>;
+        static bool try_pop_item(ordered_queue_t& q, OrderedItem& out) { return q.try_dequeue(out); }
+        static void push_item(ordered_queue_t& q, OrderedItem v) { q.enqueue(std::move(v)); }
+        static void close_queue(ordered_queue_t&) {}
+        static size_t queue_size_approx(ordered_queue_t& q) { return q.size_approx(); }
+#else
+        using ordered_queue_t = lux::cxx::BlockingQueue<OrderedItem>;
+        static bool try_pop_item(ordered_queue_t& q, OrderedItem& out) { return q.try_pop(out); }
+        static void push_item(ordered_queue_t& q, OrderedItem v) { q.push(std::move(v)); }
+        static void close_queue(ordered_queue_t& q) { q.close(); }
+        static size_t queue_size_approx(ordered_queue_t& q) { return q.size(); }
+#endif
+
     public:
-        using Callback = std::function<void(const T&)>;
-    
-        Subscriber(std::shared_ptr<Node> node, TopicHolderSptr topic, Callback cb, std::shared_ptr<CallbackGroup> group)
-            : TSubscriberBase(std::move(node), std::move(topic), std::move(cb), std::move(group)),
+        using Callback = std::function<void(message_t<T>)>;
+
+        template<typename Func>
+        Subscriber(const std::string& topic, Node* node, Func&& func, CallbackGroupBase* cgb = nullptr)
+            : SubscriberBase(nullptr, node, getCallbackGroup(cgb, node)),
+              topic_name_(topic),
+              callback_func_(std::forward<Func>(func)),
               socket_(createSubscriberSocket())
         {
-            auto ep = waitDiscovery(topic->name());
+            auto ep = waitDiscovery(topic);
             if (!ep) {
-                endpoint_ = defaultEndpoint(topic->name());
+                endpoint_ = defaultEndpoint(topic);
             } else {
                 endpoint_ = *ep;
             }
@@ -55,141 +85,130 @@ namespace lux::communication::interprocess
             running_ = true;
             thread_ = std::thread([this]{ recvLoop(); });
         }
-    
-        ~Subscriber()
+
+        ~Subscriber() override
         {
             cleanup();
         }
-    
+
+        Subscriber(const Subscriber&) = delete;
+        Subscriber& operator=(const Subscriber&) = delete;
+        Subscriber(Subscriber&&) = delete;
+        Subscriber& operator=(Subscriber&&) = delete;
+
         void stop()
         {
             cleanup();
         }
-    
+
         void takeAll() override
         {
-            message_t<T> msg;
-            while (try_pop(queue_, msg))
+            OrderedItem item;
+            while (try_pop_item(queue_, item))
             {
-                if (callback_)
-                {
-                    callback_(*msg);
-                }
+                callback_func_(std::move(item.msg));
             }
             clearReady();
+
+            if (queue_size_approx(queue_) > 0)
+                callbackGroup()->notify(this);
         }
-    
-        bool setReadyIfNot() override
-        {
-            bool expected = false;
-            return ready_flag_.compare_exchange_strong(
-                expected, true,
-                std::memory_order_acq_rel, std::memory_order_acquire
-            );
-        }
-    
-        void clearReady() override
-        {
-            ready_flag_.store(false, std::memory_order_release);
-        }
-    
+
     private:
+        void cleanup()
+        {
+            if (running_.exchange(false))
+            {
+                if (thread_.joinable())
+                    thread_.join();
+            }
+            close_queue(queue_);
+            clearReady();
+        }
+
         void recvLoop()
         {
+            uint64_t seq = 0;
             while (running_)
             {
                 T value{};
                 bool ok = socket_->receive(&value, sizeof(T));
                 if (!ok)
                 {
-                    continue; // timeout
+                    continue; // timeout or error
                 }
-                auto ptr = std::make_shared<T>(value);
-                push(queue_, std::move(ptr));
-                SubscriberBase::callbackGroup().notify(this);
-            }
-        }
-    
-        void cleanup()
-        {
-            if (running_)
-            {
-                running_ = false;
-                if (thread_.joinable())
-                    thread_.join();
-            }
-            close(queue_);
-        }
-    
-        void drainAll(std::vector<lux::communication::TimeExecEntry>& out) override
-        {
-            if constexpr(lux::communication::is_msg_stamped<T>)
-            {
-                message_t<T> msg;
-                while (try_pop(queue_, msg))
+                auto ptr = std::make_shared<T>(std::move(value));
+                
+                // For stamped messages, extract timestamp as sequence
+                uint64_t msg_seq = seq++;
+                if constexpr (lux::communication::is_msg_stamped<T>)
                 {
-                    uint64_t ts_ns = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*msg);
-                    auto invoker = [cb=callback_, m=std::move(msg)]() mutable {
-                        if (cb) { cb(*m); }
-                    };
-                    out.push_back(lux::communication::TimeExecEntry{ ts_ns, std::move(invoker) });
+                    msg_seq = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*ptr);
                 }
-            }
-            else
-            {
-                throw std::runtime_error("Subscriber<T> does not support non-stamped message type T");
+                
+                push_item(queue_, OrderedItem{ msg_seq, std::move(ptr) });
+                callbackGroup()->notify(this);
             }
         }
 
-        // Static trampoline function for ExecEntry (avoids std::function overhead)
+        void drainAll(std::vector<TimeExecEntry>& out) override
+        {
+            OrderedItem item;
+            while (try_pop_item(queue_, item))
+            {
+                auto invoker = [this, m = std::move(item.msg)]() mutable {
+                    this->callback_func_(std::move(m));
+                };
+                out.push_back(TimeExecEntry{ item.seq, std::move(invoker) });
+            }
+            clearReady();
+
+            if (queue_size_approx(queue_) > 0)
+                callbackGroup()->notify(this);
+        }
+
         static void invokeTrampoline(void* obj, std::shared_ptr<void> msg) {
             auto* self = static_cast<Subscriber<T>*>(obj);
             auto typed_msg = std::static_pointer_cast<T>(std::move(msg));
-            if (self->callback_) {
-                self->callback_(*typed_msg);
-            }
+            self->callback_func_(std::move(typed_msg));
         }
 
-        // High-performance drain using function pointer trampoline
-        void drainAllExec(std::vector<lux::communication::ExecEntry>& out) override
+        void drainAllExec(std::vector<ExecEntry>& out) override
         {
-            // Delegate to drainExecSome with unlimited count
             drainExecSome(out, SIZE_MAX);
         }
 
-        // Bounded drain for interprocess (uses timestamp as seq)
-        size_t drainExecSome(std::vector<lux::communication::ExecEntry>& out, size_t max_count) override
+        size_t drainExecSome(std::vector<ExecEntry>& out, size_t max_count) override
         {
-            if constexpr(lux::communication::is_msg_stamped<T>)
+            size_t count = 0;
+            OrderedItem item;
+            while (count < max_count && try_pop_item(queue_, item))
             {
-                size_t count = 0;
-                message_t<T> msg;
-                while (count < max_count && try_pop(queue_, msg))
-                {
-                    uint64_t ts_ns = lux::communication::builtin_msgs::common_msgs::extract_timstamp(*msg);
-                    lux::communication::ExecEntry e;
-                    e.seq = ts_ns;
-                    e.obj = this;
-                    e.invoke = &Subscriber<T>::invokeTrampoline;
-                    e.msg = std::static_pointer_cast<void>(msg);
-                    out.push_back(std::move(e));
-                    ++count;
-                }
-                return count;
+                ExecEntry e;
+                e.seq = item.seq;
+                e.obj = this;
+                e.invoke = &Subscriber<T>::invokeTrampoline;
+                e.msg = std::static_pointer_cast<void>(item.msg);
+                out.push_back(std::move(e));
+                ++count;
             }
-            else
-            {
-                throw std::runtime_error("Subscriber<T> does not support non-stamped message type T");
-            }
+
+            clearReady();
+
+            if (queue_size_approx(queue_) > 0)
+                callbackGroup()->notify(this);
+
+            return count;
         }
-    
+
+    private:
+        std::string                         topic_name_;
         std::string                         endpoint_;
+        Callback                            callback_func_;
         std::unique_ptr<SubscriberSocket>   socket_;
-        Callback                            callback_;
         std::thread                         thread_;
         std::atomic<bool>                   running_{false};
-        lux::communication::queue_t<T>      queue_;
-        std::atomic<bool>                   ready_flag_{false};
+        ordered_queue_t                     queue_;
     };
 
 } // namespace lux::communication::interprocess

@@ -1,16 +1,9 @@
 #pragma once
 
-#include <vector>
-#include <mutex>
-#include <atomic>
-#include <functional>
 #include <memory>
 #include <lux/communication/visibility.h>
 #include <lux/communication/Domain.hpp>
 #include <lux/communication/NodeBase.hpp>
-
-#include <lux/cxx/compile_time/type_info.hpp>
-#include <lux/cxx/container/SparseSet.hpp>
 
 namespace lux::communication
 {

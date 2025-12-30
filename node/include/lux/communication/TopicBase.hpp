@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <typeindex>
 #include <mutex>
 #include <atomic>
 #include <lux/cxx/container/SparseSet.hpp>

@@ -1,10 +1,5 @@
 #pragma once
 
-#include <vector>
-#include <atomic>
-#include <algorithm>
-#include <cassert>
-#include <memory>
 #include <lux/communication/TopicBase.hpp>
 #include <lux/communication/Domain.hpp>
 #include <lux/communication/Queue.hpp>

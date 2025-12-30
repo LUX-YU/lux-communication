@@ -1,10 +1,7 @@
 #pragma once
 #include <functional>
-#include <memory>
 #include <lux/communication/Queue.hpp>
-#include <lux/communication/ExecutorBase.hpp>
 #include <lux/communication/SubscriberBase.hpp>
-#include <lux/communication/visibility.h>
 #include <lux/communication/builtin_msgs/common_msgs/timestamp.st.h>
 
 #include "Topic.hpp"

@@ -1,12 +1,6 @@
 #pragma once
 
-#include <string>
-#include <memory>
-#include <cassert>
-#include <lux/communication/Domain.hpp>
-#include <lux/communication/NodeBase.hpp>
 #include <lux/communication/PublisherBase.hpp>
-#include <lux/communication/visibility.h>
 #include "Topic.hpp"
 
 namespace lux::communication::intraprocess
