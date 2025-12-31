@@ -4,6 +4,7 @@
 #include <typeindex>
 #include <mutex>
 #include <atomic>
+#include <memory>
 #include <lux/cxx/container/SparseSet.hpp>
 #include <lux/cxx/compile_time/type_info.hpp>
 #include <lux/communication/visibility.h>
