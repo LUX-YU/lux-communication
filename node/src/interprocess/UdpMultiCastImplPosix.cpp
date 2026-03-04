@@ -4,6 +4,8 @@
 #include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/time.h>
 #include <poll.h>
 
 #include "lux/communication/visibility.h"
@@ -105,6 +107,22 @@ namespace lux::communication
 			return rst;
 		}
 
+		int joinGroup()
+		{
+			struct ip_mreq mreq;
+			mreq.imr_multiaddr.s_addr = inet_addr(addr.c_str());
+			mreq.imr_interface.s_addr = INADDR_ANY;
+			return setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+		}
+
+		int setRecvTimeout(int ms)
+		{
+			struct timeval tv;
+			tv.tv_sec  = ms / 1000;
+			tv.tv_usec = (ms % 1000) * 1000;
+			return setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+		}
+
 	private:
 		int		    sock;
 		std::string addr;
@@ -153,5 +171,15 @@ namespace lux::communication
 	int UdpMultiCast::recvFrom(char* buffer, int len, SockAddr& from_addr)
 	{
 		return _impl->recvFrom(buffer, len, from_addr);
+	}
+
+	int UdpMultiCast::joinGroup()
+	{
+		return _impl->joinGroup();
+	}
+
+	int UdpMultiCast::setRecvTimeout(int timeout_ms)
+	{
+		return _impl->setRecvTimeout(timeout_ms);
 	}
 }

@@ -7,10 +7,18 @@
 
 // Assume the following headers provide Domain, Node, TimeOrderedExecutor,
 // Publisher, Subscriber, ImuStampedS, ImageStampedS, timestamp utilities, etc.
-#include <lux/communication/intraprocess/Node.hpp>
+#include <lux/communication/Node.hpp>
 #include "lux/communication/builtin_msgs/sensor_msgs/imu_stamped.st.h"
 #include "lux/communication/builtin_msgs/sensor_msgs/image_stamped.st.h"
 #include "lux/communication/builtin_msgs/common_msgs/timestamp.st.h"
+#include <lux/communication/executor/TimeOrderedExecutor.hpp>
+
+namespace comm = lux::communication;
+
+static comm::NodeOptions intraOpts()
+{
+	return { .enable_discovery = false, .enable_shm = false, .enable_net = false };
+}
 
 static std::atomic<bool> g_running{true}; // control when publishing threads stop
 
@@ -21,17 +29,17 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
                           std::atomic<uint64_t> &cam_out_of_order_count)
 {
     // 1) Create Domain / Node
-    auto domain = std::make_shared<lux::communication::intraprocess::Domain>(0);
-    auto node   = std::make_shared<lux::communication::intraprocess::Node>("test_node", domain);
+    comm::Domain domain(0);
+    comm::Node node("test_node", domain, intraOpts());
 
     // 2) Create TimeOrderedExecutor with a delay window
     auto timeExec = std::make_shared<lux::communication::TimeOrderedExecutor>(offset);
     // Add the node's default callback group to the executor
-    timeExec->addNode(node);
+    timeExec->addNode(&node);
 
     // 3) Create publishers (IMU / Camera)
-    auto pub_imu = node->createPublisher<lux::communication::builtin_msgs::sensor_msgs::ImuStampedS>("/imu");
-    auto pub_cam = node->createPublisher<lux::communication::builtin_msgs::sensor_msgs::ImageStampedS>("/camera");
+    auto pub_imu = node.createPublisher<lux::communication::builtin_msgs::sensor_msgs::ImuStampedS>("/imu");
+    auto pub_cam = node.createPublisher<lux::communication::builtin_msgs::sensor_msgs::ImageStampedS>("/camera");
 
     // 4) Stats variables
     std::atomic<uint64_t> last_imu_ts(0);
@@ -42,11 +50,11 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
     cam_out_of_order_count = 0;
 
     // 5) Create subscriber for IMU
-    auto sub_imu = node->createSubscriber<lux::communication::builtin_msgs::sensor_msgs::ImuStampedS>(
+    auto sub_imu = node.createSubscriber<lux::communication::builtin_msgs::sensor_msgs::ImuStampedS>(
         "/imu",
-        [&](const lux::communication::builtin_msgs::sensor_msgs::ImuStampedS & msg)
+        [&](const std::shared_ptr<lux::communication::builtin_msgs::sensor_msgs::ImuStampedS> msg)
         {
-            uint64_t t = lux::communication::builtin_msgs::common_msgs::timestamp_to_ns(msg.timestamp);
+            uint64_t t = lux::communication::builtin_msgs::common_msgs::timestamp_to_ns(msg->timestamp);
             uint64_t prev = last_imu_ts.load(std::memory_order_acquire);
             if (t < prev) {
                 imu_out_of_order_count.fetch_add(1, std::memory_order_relaxed);
@@ -56,11 +64,11 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
     );
 
     // 6) Create subscriber for camera
-    auto sub_cam = node->createSubscriber<lux::communication::builtin_msgs::sensor_msgs::ImageStampedS>(
+    auto sub_cam = node.createSubscriber<lux::communication::builtin_msgs::sensor_msgs::ImageStampedS>(
         "/camera",
-        [&](const lux::communication::builtin_msgs::sensor_msgs::ImageStampedS & msg)
+        [&](const std::shared_ptr<lux::communication::builtin_msgs::sensor_msgs::ImageStampedS> msg)
         {
-            uint64_t t = lux::communication::builtin_msgs::common_msgs::timestamp_to_ns(msg.timestamp);
+            uint64_t t = lux::communication::builtin_msgs::common_msgs::timestamp_to_ns(msg->timestamp);
             uint64_t prev = last_cam_ts.load(std::memory_order_acquire);
             if (t < prev) {
                 cam_out_of_order_count.fetch_add(1, std::memory_order_relaxed);
@@ -124,7 +132,7 @@ void run_test_with_offset(std::chrono::nanoseconds offset,
 
     // 10) Stop
     g_running.store(false);
-    node->stop();       // notify Node
+    node.stop();       // notify Node
     timeExec->stop();   // stop Executor
 
     // Wait for publishing threads and spin thread to exit

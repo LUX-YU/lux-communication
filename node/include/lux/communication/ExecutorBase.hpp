@@ -13,7 +13,22 @@
 #include <lux/communication/visibility.h>
 #include <lux/cxx/container/SparseSet.hpp>
 
+// ── Spin-loop pause hint (saves power / avoids pipeline stall) ──
+#if defined(_MSC_VER)
+#  include <intrin.h>
+#endif
+
 namespace lux::communication {
+
+namespace detail {
+	inline void cpu_pause() noexcept {
+#if defined(_MSC_VER) || defined(__x86_64__) || defined(__i386__)
+		_mm_pause();
+#elif defined(__aarch64__)
+		__asm__ volatile("yield");
+#endif
+	}
+} // namespace detail
 
 	class NodeBase;
 	class CallbackGroupBase;
@@ -65,6 +80,25 @@ namespace lux::communication {
 
 		SubscriberBase* waitOneReady()
 		{
+			// Phase 1: user-space spin — avoids kernel semaphore syscalls.
+			spinning_in_userspace_.store(true, std::memory_order_seq_cst);
+			for (uint32_t i = 0; i < kSpinIterations; ++i) {
+				SubscriberBase* sub = nullptr;
+				if (ready_queue_.try_dequeue(sub)) {
+					spinning_in_userspace_.store(false, std::memory_order_seq_cst);
+					return sub;
+				}
+				detail::cpu_pause();
+			}
+			spinning_in_userspace_.store(false, std::memory_order_seq_cst);
+
+			// Final drain: catch items enqueued while clearing the flag.
+			{
+				SubscriberBase* sub = nullptr;
+				if (ready_queue_.try_dequeue(sub)) return sub;
+			}
+
+			// Phase 2: kernel block.
 			ready_sem_.acquire();
 			SubscriberBase* sub = nullptr;
 			ready_queue_.try_dequeue(sub);
@@ -83,8 +117,12 @@ namespace lux::communication {
 
 		void enqueueReady(SubscriberBase* sub)
 		{
-			ready_queue_.enqueue(std::move(sub));
-			ready_sem_.release();
+			ready_queue_.enqueue(sub);
+			// If executor is spin-polling in user-space, skip the kernel semaphore call.
+			// seq_cst ordering guarantees correct visibility (see waitOneReady).
+			if (!spinning_in_userspace_.load(std::memory_order_seq_cst)) {
+				ready_sem_.release();
+			}
 		}
 
 	protected:
@@ -95,6 +133,14 @@ namespace lux::communication {
 		std::mutex							nodes_mutex_;
 		ReadyQueue							ready_queue_;
 		std::counting_semaphore<INT_MAX>	ready_sem_{ 0 };
+
+		/// True while waitOneReady() is in its user-space spin loop.
+		/// enqueueReady() reads this to decide whether to skip sem.release().
+		std::atomic<bool>					spinning_in_userspace_{ false };
+
+		/// Number of spin iterations before falling back to kernel semaphore.
+		/// ~4096 × _mm_pause (~40ns each on Skylake+) ≈ 160μs max spin time.
+		static constexpr uint32_t kSpinIterations = 4096;
 
 	protected:
 		void			waitCondition();

@@ -17,8 +17,6 @@ namespace lux::communication
     void MultiThreadedExecutor::spinSome()
     {
         auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
-        if (!spinning_)
-            return;
         if (sub)
         {
             handleSubscriber(std::move(sub));

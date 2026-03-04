@@ -22,10 +22,15 @@
 #include <cassert>
 #include <iomanip>
 
-#include <lux/communication/intraprocess/Node.hpp>
-#include <lux/communication/intraprocess/Publisher.hpp>
-#include <lux/communication/intraprocess/Subscriber.hpp>
+#include <lux/communication/Node.hpp>
 #include <lux/communication/executor/SeqOrderedExecutor.hpp>
+
+namespace comm = lux::communication;
+
+static comm::NodeOptions intraOpts()
+{
+	return { .enable_discovery = false, .enable_shm = false, .enable_net = false };
+}
 
 struct TestMessage {
     int publisher_id;   // Which publisher sent this
@@ -35,7 +40,6 @@ struct TestMessage {
 
 int main()
 {
-    using namespace lux::communication::intraprocess;
     using namespace lux::communication;
 
     std::cout << "=== SeqOrderedExecutor Order & Performance Test ===" << std::endl;
@@ -57,29 +61,30 @@ int main()
     received_orders.reserve(total_messages);
 
     // Create node
-    Node node("test_node");
+    comm::Domain domain(1);
+    comm::Node node("test_node", domain, intraOpts());
 
     // Create publishers
-    Publisher<TestMessage> pub_a("/topic_a", &node);
-    Publisher<TestMessage> pub_b("/topic_b", &node);
+    auto pub_a = node.createPublisher<TestMessage>("/topic_a");
+    auto pub_b = node.createPublisher<TestMessage>("/topic_b");
 
     // Create subscribers
-    Subscriber<TestMessage> sub_a(
-        "/topic_a", &node,
-        [&](const std::shared_ptr<TestMessage> msg)
+    auto sub_a = node.createSubscriber<TestMessage>(
+        "/topic_a",
+        [&](const TestMessage& msg)
         {
             std::lock_guard<std::mutex> lock(received_mutex);
-            received_orders.push_back(msg->publish_order);
+            received_orders.push_back(msg.publish_order);
             total_received++;
         }
     );
 
-    Subscriber<TestMessage> sub_b(
-        "/topic_b", &node,
-        [&](const std::shared_ptr<TestMessage> msg)
+    auto sub_b = node.createSubscriber<TestMessage>(
+        "/topic_b",
+        [&](const TestMessage& msg)
         {
             std::lock_guard<std::mutex> lock(received_mutex);
-            received_orders.push_back(msg->publish_order);
+            received_orders.push_back(msg.publish_order);
             total_received++;
         }
     );
@@ -113,7 +118,7 @@ int main()
                 msg.publisher_id = 2;  // Publisher B
                 msg.message_id = b_sent;
                 msg.publish_order = global_publish_order.fetch_add(1);
-                pub_b.publish(msg);
+                pub_b->publish(msg);
                 b_sent++;
             }
 
@@ -124,7 +129,7 @@ int main()
                 msg.publisher_id = 1;  // Publisher A
                 msg.message_id = a_sent;
                 msg.publish_order = global_publish_order.fetch_add(1);
-                pub_a.publish(msg);
+                pub_a->publish(msg);
                 a_sent++;
             }
         }

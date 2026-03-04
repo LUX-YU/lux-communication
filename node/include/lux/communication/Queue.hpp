@@ -1,14 +1,19 @@
 #pragma once
 #include <memory>
 
-#if __has_include(<moodycamel/concurrentqueue.h>)
-#   include <moodycamel/concurrentqueue.h>
-#   define LUX_HAS_MOODYCAMEL_CONCURRENTQUEUE
-#elif __has_include(<concurrentqueue/moodycamel/concurrentqueue.h>)
-#   include <concurrentqueue/moodycamel/concurrentqueue.h>
-#   define LUX_HAS_MOODYCAMEL_CONCURRENTQUEUE
-#elif __has_include(<concurrentqueue/concurrentqueue.h>)
-#   include <concurrentqueue/concurrentqueue.h>
+// Primary gate: CMake defines __MACRO_USE_LOCKFREE_QUEUE__ when
+// cameron314/concurrentqueue is found and USE_LOCKFREE_QUEUE is ON.
+// Fallback: __has_include for header-only / non-CMake consumers.
+#if defined(__MACRO_USE_LOCKFREE_QUEUE__) || __has_include(<moodycamel/concurrentqueue.h>) || \
+    __has_include(<concurrentqueue/moodycamel/concurrentqueue.h>) || \
+    __has_include(<concurrentqueue/concurrentqueue.h>)
+#   if __has_include(<moodycamel/concurrentqueue.h>)
+#       include <moodycamel/concurrentqueue.h>
+#   elif __has_include(<concurrentqueue/moodycamel/concurrentqueue.h>)
+#       include <concurrentqueue/moodycamel/concurrentqueue.h>
+#   elif __has_include(<concurrentqueue/concurrentqueue.h>)
+#       include <concurrentqueue/concurrentqueue.h>
+#   endif
 #   define LUX_HAS_MOODYCAMEL_CONCURRENTQUEUE
 #endif
 

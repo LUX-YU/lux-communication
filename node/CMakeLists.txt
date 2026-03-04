@@ -1,10 +1,8 @@
-find_package(cppzmq   CONFIG REQUIRED)
+find_package(cppzmq   CONFIG QUIET)  # Optional: ZMQ replaced by SHM Transport in Phase 2
 find_package(stduuid  CONFIG REQUIRED)
-find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time)
+find_package(lux-cxx		 REQUIRED COMPONENTS concurrent compile_time algorithm)
 
 set(LUX_COMMUNICATION_NODE_SRC
-	${CMAKE_CURRENT_SOURCE_DIR}/src/intraprocess/Node.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/Node.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/Domain.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/TopicBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/CallbackGroupBase.cpp
@@ -17,12 +15,41 @@ set(LUX_COMMUNICATION_NODE_SRC
 	${CMAKE_CURRENT_SOURCE_DIR}/src/PublisherBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/SubscriberBase.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/TimeExecEntry.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/discovery/ShmRegistry.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/discovery/MulticastAnnouncer.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/discovery/DiscoveryService.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/ShmRingWriter.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/ShmRingReader.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/ShmDataPool.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/FragmentSender.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/FragmentAssembler.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/UdpTransportWriter.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/UdpTransportReader.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/TcpTransportWriter.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/transport/TcpTransportReader.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/IoThread.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/unified/Node.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/TokenBucket.cpp
 )
 
 if(WIN32)
-	LIST(APPEND LUX_COMMUNICATION_NODE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/UdpMultiCastImplWin.cpp)
+	LIST(APPEND LUX_COMMUNICATION_NODE_SRC
+		${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/UdpMultiCastImplWin.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/platform/PlatformDefsWin.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/platform/SharedMemoryWin.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/transport/ShmNotifyWin.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/platform/NetSocketWin.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/transport/IoReactorWin.cpp
+	)
 else()
-	LIST(APPEND LUX_COMMUNICATION_NODE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/UdpMultiCastImplPosix.cpp)
+	LIST(APPEND LUX_COMMUNICATION_NODE_SRC
+		${CMAKE_CURRENT_SOURCE_DIR}/src/interprocess/UdpMultiCastImplPosix.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/platform/PlatformDefsPosix.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/platform/SharedMemoryPosix.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/transport/ShmNotifyPosix.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/platform/NetSocketPosix.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/src/transport/IoReactorPosix.cpp
+	)
 endif()
 
 add_component(
@@ -45,12 +72,23 @@ component_include_directories(
 target_link_libraries(
         node
         PUBLIC
-        cppzmq
         lux::cxx::concurrent
         lux::cxx::compile_time
+        lux::cxx::algorithm
         PRIVATE
         stduuid
 )
+
+if(cppzmq_FOUND)
+    target_link_libraries(node PUBLIC cppzmq)
+    target_compile_definitions(node PUBLIC LUX_HAS_ZMQ)
+endif()
+
+if(WIN32)
+	target_link_libraries(node PRIVATE ws2_32)
+else()
+	target_link_libraries(node PRIVATE rt)
+endif()
 
 component_add_internal_dependencies(
     node
@@ -94,14 +132,12 @@ if(USE_LOCKFREE_QUEUE)
 
 	component_add_transitive_commands(
 		node
-		"find_package(cppzmq   CONFIG REQUIRED)"
 		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
 		"${CONCURRENT_QUEUE_DEPENDS}"
 	)
 else()
 	component_add_transitive_commands(
 		node
-		"find_package(cppzmq   CONFIG REQUIRED)"
 		"find_package(lux-cxx REQUIRED COMPONENTS concurrent compile_time)"
 	)
 endif()

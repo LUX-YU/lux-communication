@@ -107,6 +107,22 @@ namespace lux::communication
 			return rst;
 		}
 
+		int joinGroup()
+		{
+			struct ip_mreq mreq;
+			mreq.imr_multiaddr.s_addr = inet_addr(addr.c_str());
+			mreq.imr_interface.s_addr = INADDR_ANY;
+			return setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+				(char*)&mreq, sizeof(mreq));
+		}
+
+		int setRecvTimeout(int ms)
+		{
+			DWORD timeout = static_cast<DWORD>(ms);
+			return setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+				(char*)&timeout, sizeof(timeout));
+		}
+
 	private:
 		SOCKET		sock;
 		std::string addr;
@@ -156,5 +172,15 @@ namespace lux::communication
 	int UdpMultiCast::recvFrom(char* buffer, int len, SockAddr& from_addr)
 	{
 		return _impl->recvFrom(buffer, len, from_addr);
+	}
+
+	int UdpMultiCast::joinGroup()
+	{
+		return _impl->joinGroup();
+	}
+
+	int UdpMultiCast::setRecvTimeout(int timeout_ms)
+	{
+		return _impl->setRecvTimeout(timeout_ms);
 	}
 }

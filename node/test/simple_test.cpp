@@ -1,32 +1,30 @@
 #include <iostream>
-#include <lux/communication/intraprocess/Node.hpp>
-#include <lux/communication/intraprocess/Publisher.hpp>
-#include <lux/communication/intraprocess/Subscriber.hpp>
+#include <lux/communication/Node.hpp>
 #include <lux/communication/executor/SingleThreadedExecutor.hpp>
 
 int main()
 {
-	using namespace lux::communication::intraprocess;
-	std::atomic<int> count;
+	namespace comm = lux::communication;
+	std::atomic<int> count{0};
 
-	Node node("default node");
-	Publisher<int> publisher("/whatever/topic", &node);
-	Subscriber<int> subscriber(
-		"/whatever/topic", &node,
-		[&count](const std::shared_ptr<int> data)
+	comm::Node node("default node");
+	auto publisher = node.createPublisher<int>("/whatever/topic");
+	auto subscriber = node.createSubscriber<int>(
+		"/whatever/topic",
+		[&count](const int& data)
 		{
 			count++;
-			std::cout << *data << std::endl;
+			std::cout << data << std::endl;
 		}
 	);
 
-	lux::communication::SingleThreadedExecutor executor;
+	comm::SingleThreadedExecutor executor;
 		
 	std::thread t(
 		[&publisher]()
 		{
 			for(int i = 0; i < 10; i++)
-				publisher.publish(i);
+				publisher->publish(i);
 		}
 	);
 
@@ -37,6 +35,7 @@ int main()
 	executor.removeNode(&node);
 
 	t.join();
+	node.stop();
 
 	return 0;
 }

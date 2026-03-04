@@ -41,6 +41,12 @@ namespace lux::communication
 		void send(void* data, size_t len);
 		int recvFrom(char* buffer, int len, SockAddr& from_addr);
 
+		/// Join the multicast group for receiving (call after bind()).
+		int joinGroup();
+
+		/// Set a receive timeout in milliseconds (0 = block forever).
+		int setRecvTimeout(int timeout_ms);
+
 	private:
 		std::unique_ptr<UdpMultiCastImpl> _impl;
 	};

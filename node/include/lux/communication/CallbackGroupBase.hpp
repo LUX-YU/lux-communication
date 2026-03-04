@@ -83,7 +83,7 @@ namespace lux::communication
         using CallbackGroupList = lux::cxx::AutoSparseSet<SubscriberBase*>;
 
         NodeBase*             node_;
-        ExecutorBase*         executor_;
+        ExecutorBase*         executor_{nullptr};
         size_t                id_in_node_{invalid_id};
         
 
