@@ -29,6 +29,7 @@
 #include <lux/communication/transport/FrameHeader.hpp>
 #include <lux/communication/transport/ShmRingReader.hpp>
 #include <lux/communication/transport/ShmDataPool.hpp>
+#include <lux/communication/transport/IoReactor.hpp>
 #include <lux/communication/transport/UdpTransportReader.hpp>
 #include <lux/communication/transport/TcpTransportReader.hpp>
 #include <lux/communication/discovery/DiscoveryService.hpp>
@@ -147,6 +148,13 @@ private:
     void processReadView(ShmPeer& entry);
     void ensurePool(const ShmPeer& entry);
 
+    /// Process a received network frame (TCP or UDP).
+    void processNetFrame(const transport::FrameHeader& hdr,
+                         const void* payload, uint32_t payload_size);
+
+    /// Unregister all net peer fds from the IoReactor.
+    void unregisterNetFds();
+
     static void invokeTrampoline(void* obj, std::shared_ptr<void> msg);
 
     // ── Members ──
@@ -170,6 +178,9 @@ private:
     std::atomic<bool>       stopped_{false};
 
     std::unique_ptr<transport::ShmDataPool> data_pool_;
+
+    // ── Net: UDP fragment GC poller handle ──
+    uint64_t                    udp_gc_handle_ = 0;
 
     // ── QoS: Deadline detection ──
     std::atomic<std::chrono::steady_clock::time_point> last_message_time_{
@@ -306,6 +317,16 @@ void Subscriber<T>::cleanup()
         deadline_poll_handle_ = 0;
     }
 
+    // Unregister UDP GC poller.
+    if (udp_gc_handle_)
+    {
+        node_->ioThread().unregisterPoller(udp_gc_handle_);
+        udp_gc_handle_ = 0;
+    }
+
+    // Unregister net peer fds from IoReactor.
+    unregisterNetFds();
+
     // Unregister from DiscoveryService.
     const auto& nopts = node_->options();
     if (nopts.enable_discovery)
@@ -368,7 +389,48 @@ void Subscriber<T>::onPeerDiscovered(const discovery::TopicEndpoint& ep)
             auto tcp = std::make_unique<transport::TcpTransportReader>(
                 addr, port, topic_hash_, typeid(T).hash_code(),
                 platform::currentPid(), platform::currentHostname());
-            // TODO: register recv fds with IoReactor for event-driven recv
+
+            // ── Register TCP fd with IoReactor for event-driven recv ──
+            if (tcp->connect()) {
+                auto* tcp_raw = tcp.get();
+                node_->reactor().addFd(
+                    tcp_raw->nativeFd(),
+                    transport::IoReactor::Readable,
+                    [this, tcp_raw](platform::socket_t, uint8_t events) {
+                        if (events & transport::IoReactor::Error) return;
+                        tcp_raw->onDataReady(
+                            [this](const transport::FrameHeader& hdr,
+                                   const void* payload, uint32_t sz) {
+                                processNetFrame(hdr, payload, sz);
+                            });
+                    });
+            }
+
+            // ── Register UDP fd with IoReactor for event-driven recv ──
+            auto* udp_raw = udp.get();
+            node_->reactor().addFd(
+                udp_raw->nativeFd(),
+                transport::IoReactor::Readable,
+                [this, udp_raw](platform::socket_t, uint8_t events) {
+                    if (events & transport::IoReactor::Error) return;
+                    udp_raw->pollOnce(
+                        [this](const transport::FrameHeader& hdr,
+                               const void* payload, uint32_t sz) {
+                            processNetFrame(hdr, payload, sz);
+                        });
+                });
+
+            // ── Register periodic UDP fragment GC if not already done ──
+            if (udp_gc_handle_ == 0) {
+                udp_gc_handle_ = node_->ioThread().registerPoller(
+                    [this]() {
+                        std::lock_guard lk(net_mutex_);
+                        for (auto& p : net_peers_) {
+                            if (p.udp) p.udp->gc();
+                        }
+                    });
+            }
+
             net_peers_.push_back(NetPeer{ep.net_endpoint, std::move(udp), std::move(tcp)});
         } catch (const std::exception&) {
             // Retry on next announce.
@@ -393,7 +455,14 @@ void Subscriber<T>::onPeerLost(const discovery::TopicEndpoint& ep)
     }
     case ChannelKind::Net: {
         std::lock_guard lock(net_mutex_);
-        std::erase_if(net_peers_, [&](const NetPeer& p) { return p.endpoint == ep.net_endpoint; });
+        std::erase_if(net_peers_, [&](const NetPeer& p) {
+            if (p.endpoint != ep.net_endpoint) return false;
+            if (p.tcp && p.tcp->isConnected())
+                node_->reactor().removeFd(p.tcp->nativeFd());
+            if (p.udp && p.udp->isValid())
+                node_->reactor().removeFd(p.udp->nativeFd());
+            return true;
+        });
         break;
     }
     }
@@ -606,6 +675,73 @@ void Subscriber<T>::ensurePool(const ShmPeer& entry)
     try {
         data_pool_ = transport::ShmDataPool::openExisting(std::string(buf));
     } catch (const std::exception&) { /* retry later */ }
+}
+
+// ── Event-driven network receive ─────────────────────────────────
+
+template<typename T>
+void Subscriber<T>::processNetFrame(const transport::FrameHeader& hdr,
+                                     const void* payload, uint32_t payload_size)
+{
+    if constexpr (!serialization::HasSerializer<T>) return;
+    else {
+    if (!transport::isValidFrame(hdr)) return;
+
+    stored_msg_t<T> msg_storage{};
+    T* raw_ptr;
+    if constexpr (SmallValueMsg<T>) {
+        raw_ptr = &msg_storage;
+    } else {
+        msg_storage = std::make_shared<T>();
+        raw_ptr = msg_storage.get();
+    }
+    if (!Ser::deserialize(*raw_ptr, payload, payload_size)) return;
+
+    // Content filter.
+    if (content_filter_ && !content_filter_(*raw_ptr)) return;
+
+    uint64_t msg_seq = hdr.seq_num;
+    if constexpr (is_msg_stamped<T>) {
+        msg_seq = builtin_msgs::common_msgs::extract_timstamp(*raw_ptr);
+    }
+
+    const uint64_t ts = (opts_.qos.lifespan.count() > 0)
+                      ? platform::steadyNowNs() : hdr.timestamp_ns;
+    push_item(queue_, OrderedItem{msg_seq, ts, std::move(msg_storage)});
+
+    // KeepLast depth enforcement.
+    if (opts_.qos.history == History::KeepLast && opts_.qos.depth > 0)
+    {
+        while (queue_size_approx(queue_) > opts_.qos.depth)
+        {
+            OrderedItem discard;
+            if (!try_pop_item(queue_, discard)) break;
+        }
+    }
+
+    // Deadline tracking.
+    if (opts_.qos.deadline.count() > 0)
+    {
+        last_message_time_.store(std::chrono::steady_clock::now(),
+                                 std::memory_order_relaxed);
+        deadline_fired_.store(false, std::memory_order_relaxed);
+    }
+
+    callbackGroup()->notify(this);
+    } // else (HasSerializer<T>)
+}
+
+template<typename T>
+void Subscriber<T>::unregisterNetFds()
+{
+    std::lock_guard lock(net_mutex_);
+    for (auto& p : net_peers_) {
+        if (p.tcp && p.tcp->isConnected())
+            node_->reactor().removeFd(p.tcp->nativeFd());
+        if (p.udp && p.udp->isValid())
+            node_->reactor().removeFd(p.udp->nativeFd());
+    }
+    net_peers_.clear();
 }
 
 // ── Executor interface ───────────────────────────────────────────

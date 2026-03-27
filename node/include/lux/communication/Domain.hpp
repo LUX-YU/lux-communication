@@ -76,6 +76,12 @@ namespace lux::communication
             return global_seq_.fetch_add(static_cast<uint64_t>(n), std::memory_order_relaxed);
         }
 
+        /// Read the current global sequence number (without advancing it).
+        uint64_t currentSeq() const
+        {
+            return global_seq_.load(std::memory_order_relaxed);
+        }
+
     private:
         size_t id_;
 

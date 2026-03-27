@@ -89,7 +89,7 @@ void TcpTransportWriter::onAcceptReady() {
 
     resp.accepted      = 1;
     resp.reject_reason = 0;
-    resp.publisher_seq = 0;  // TODO: fill with current publisher seq
+    resp.publisher_seq = seq_supplier_ ? seq_supplier_() : 0;
 
     if (!client.sendAll(&resp, sizeof(resp))) {
         client.close();

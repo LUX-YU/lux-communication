@@ -32,3 +32,7 @@ target_include_directories(unified_transport_test PRIVATE ${CMAKE_CURRENT_SOURCE
 add_executable(qos_test qos_test.cpp)
 target_link_libraries(qos_test PRIVATE lux::communication::node)
 target_include_directories(qos_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pinclude)
+
+add_executable(timeorder_executor_test timeorder_executor_test.cpp)
+target_link_libraries(timeorder_executor_test PRIVATE lux::communication::node)
+target_include_directories(timeorder_executor_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pinclude)

@@ -11,7 +11,7 @@ namespace lux::communication::transport {
 
 /// Cross-platform IO reactor.
 ///
-/// Linux: epoll     Windows: select (initially)
+/// Linux: epoll     Windows: IOCP
 ///
 /// Monitors multiple socket fds and dispatches callbacks when events fire.
 /// Designed to run on a single dedicated IO thread via `run()`, or polled

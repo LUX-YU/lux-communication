@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -21,9 +22,15 @@ public:
     /// @param bind_port   Local TCP port. 0 = OS-assigned.
     /// @param topic_hash  For handshake validation.
     /// @param type_hash   For type-safety check.
+    /// Callback that returns the publisher's current sequence number.
+    using SeqSupplier = std::function<uint64_t()>;
+
     TcpTransportWriter(const std::string& bind_addr, uint16_t bind_port,
                        uint64_t topic_hash, uint64_t type_hash);
     ~TcpTransportWriter();
+
+    /// Set the sequence supplier for handshake responses.
+    void setSeqSupplier(SeqSupplier fn) { seq_supplier_ = std::move(fn); }
 
     TcpTransportWriter(TcpTransportWriter&&) noexcept;
     TcpTransportWriter& operator=(TcpTransportWriter&&) noexcept;
@@ -84,6 +91,7 @@ private:
     uint16_t                                    bind_port_;
     std::vector<std::unique_ptr<Connection>>    connections_;
     mutable std::mutex                          conn_mutex_;
+    SeqSupplier                                 seq_supplier_;
 };
 
 } // namespace lux::communication::transport

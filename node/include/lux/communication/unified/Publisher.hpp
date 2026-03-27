@@ -326,6 +326,7 @@ void Publisher<T>::onPeerDiscovered(const discovery::TopicEndpoint& ep)
             auto udp = std::make_unique<transport::UdpTransportWriter>(addr, port);
             auto tcp = std::make_unique<transport::TcpTransportWriter>(
                 "0.0.0.0", 0, topic_hash_, typeid(T).hash_code());
+            tcp->setSeqSupplier([this]() { return node_->domain().currentSeq(); });
             net_peers_.push_back(NetPeer{ep.net_endpoint, std::move(udp), std::move(tcp)});
             has_net_peers_.store(true, std::memory_order_release);
         } catch (const std::exception&) {
