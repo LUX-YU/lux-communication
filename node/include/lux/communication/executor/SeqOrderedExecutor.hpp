@@ -3,13 +3,13 @@
 #include <lux/communication/ExecutorBase.hpp>
 #include <lux/communication/ReorderBuffer.hpp>
 
-namespace lux::communication {
-
+namespace lux::communication
+{
 	/**
 	 * @brief Executor that processes callbacks strictly by global sequence number.
 	 *        Ensures that callbacks are executed in the exact order messages were published,
 	 *        regardless of which subscriber receives them.
-	 *        
+	 *
 	 *        Key optimizations:
 	 *        1. Ring buffer with O(1) insert/pop for reordering
 	 *        2. Bounded drain (drainExecSome) - only drain a small batch per subscriber
@@ -29,7 +29,7 @@ namespace lux::communication {
 		/**
 		 * @brief Get diagnostic statistics for performance monitoring.
 		 */
-		const ReorderBufferStats& stats() const { return buffer_.stats(); }
+		const ReorderBufferStats &stats() const { return buffer_.stats(); }
 
 		/**
 		 * @brief Reset diagnostic statistics.
@@ -48,7 +48,7 @@ namespace lux::communication {
 
 	protected:
 		bool checkRunnable() override;
-		void handleSubscriber(SubscriberBase* sub) override;
+		void handleSubscriber(SubscriberBase *sub) override;
 
 	private:
 		/**
@@ -61,15 +61,15 @@ namespace lux::communication {
 		 * @brief Drain one subscriber with bounded count.
 		 * @return true if any entries were drained
 		 */
-		bool drainOneSubscriber(SubscriberBase* sub);
+		bool drainOneSubscriber(SubscriberBase *sub);
 
 	private:
 		// Max entries to drain per subscriber (bounded drain for round-robin)
 		// Kept small to minimize reorder window and avoid fallback hashmap
 		static constexpr size_t kMaxDrainPerSubscriber = 16;
 
-		ReorderBuffer buffer_;         // Ring buffer with O(1) reordering + fallback
-		
+		ReorderBuffer buffer_; // Ring buffer with O(1) reordering + fallback
+
 		// Thread-local buffer for draining (avoid allocation per call)
 		// Note: Using inline buffer since this is single-threaded executor
 		std::vector<ExecEntry> drain_buffer_;

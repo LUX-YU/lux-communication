@@ -2,8 +2,8 @@
 
 #include <lux/communication/ExecutorBase.hpp>
 
-namespace lux::communication {
-
+namespace lux::communication
+{
 	class LUX_COMMUNICATION_PUBLIC SingleThreadedExecutor : public ExecutorBase
 	{
 	public:
@@ -11,7 +11,6 @@ namespace lux::communication {
 		~SingleThreadedExecutor() override;
 
 		void spinSome() override;
-		void handleSubscriber(SubscriberBase* sub) override;
+		void handleSubscriber(SubscriberBase *sub) override;
 	};
-
 } // namespace lux::communication

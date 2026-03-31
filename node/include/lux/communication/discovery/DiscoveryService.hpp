@@ -7,107 +7,114 @@
 #include <memory>
 #include <lux/communication/visibility.h>
 
-namespace lux::communication::discovery {
+namespace lux::communication::discovery
+{
+    // ──────── Public data types ────────
+    /// Describes one endpoint (publisher or subscriber) of a topic.
+    struct LUX_COMMUNICATION_PUBLIC TopicEndpoint
+    {
+        std::string topic_name;
+        std::string type_name;
+        uint64_t type_hash = 0;
+        uint64_t domain_id = 0;
+        uint32_t pid = 0;
+        std::string hostname;
 
-// ──────── Public data types ────────
+        enum class Role : uint8_t
+        {
+            Publisher = 1,
+            Subscriber = 2
+        };
+        Role role = Role::Publisher;
 
-/// Describes one endpoint (publisher or subscriber) of a topic.
-struct LUX_COMMUNICATION_PUBLIC TopicEndpoint {
-    std::string topic_name;
-    std::string type_name;
-    uint64_t    type_hash  = 0;
-    uint64_t    domain_id  = 0;
-    uint32_t    pid        = 0;
-    std::string hostname;
+        /// Transport hints (populated by Phase 2+).
+        std::string shm_segment_name;
+        std::string net_endpoint;
+    };
 
-    enum class Role : uint8_t { Publisher = 1, Subscriber = 2 };
-    Role role = Role::Publisher;
+    enum class DiscoveryEventType
+    {
+        EndpointDiscovered,
+        EndpointLost,
+    };
 
-    /// Transport hints (populated by Phase 2+).
-    std::string shm_segment_name;
-    std::string net_endpoint;
-};
+    struct DiscoveryEvent
+    {
+        DiscoveryEventType type;
+        TopicEndpoint endpoint;
+    };
 
-enum class DiscoveryEventType {
-    EndpointDiscovered,
-    EndpointLost,
-};
+    using DiscoveryCallback = std::function<void(const DiscoveryEvent &)>;
 
-struct DiscoveryEvent {
-    DiscoveryEventType type;
-    TopicEndpoint      endpoint;
-};
+    // ──────── Discovery service ────────
 
-using DiscoveryCallback = std::function<void(const DiscoveryEvent&)>;
+    /// Unified discovery service combining same-machine SHM registry and LAN multicast.
+    /// One instance per domain_id (singleton).
+    class LUX_COMMUNICATION_PUBLIC DiscoveryService
+    {
+    public:
+        /// Get (or create) the singleton for the given domain.
+        static DiscoveryService &getInstance(size_t domain_id = 0);
 
-// ──────── Discovery service ────────
+        ~DiscoveryService();
 
-/// Unified discovery service combining same-machine SHM registry and LAN multicast.
-/// One instance per domain_id (singleton).
-class LUX_COMMUNICATION_PUBLIC DiscoveryService {
-public:
-    /// Get (or create) the singleton for the given domain.
-    static DiscoveryService& getInstance(size_t domain_id = 0);
+        // ──── Announce / Withdraw ────
 
-    ~DiscoveryService();
+        /// Register a publisher endpoint.  Returns a handle for later withdraw().
+        uint64_t announcePublisher(const std::string &topic_name,
+                                   const std::string &type_name,
+                                   uint64_t type_hash,
+                                   const std::string &shm_name = "",
+                                   const std::string &net_endpoint = "");
 
-    // ──── Announce / Withdraw ────
+        /// Register a subscriber endpoint.
+        uint64_t announceSubscriber(const std::string &topic_name,
+                                    const std::string &type_name,
+                                    uint64_t type_hash,
+                                    const std::string &shm_name = "",
+                                    const std::string &net_endpoint = "");
 
-    /// Register a publisher endpoint.  Returns a handle for later withdraw().
-    uint64_t announcePublisher(const std::string& topic_name,
-                               const std::string& type_name,
-                               uint64_t type_hash,
-                               const std::string& shm_name      = "",
-                               const std::string& net_endpoint   = "");
+        /// Withdraw a previously announced endpoint.
+        void withdraw(uint64_t handle);
 
-    /// Register a subscriber endpoint.
-    uint64_t announceSubscriber(const std::string& topic_name,
-                                const std::string& type_name,
-                                uint64_t type_hash,
-                                const std::string& shm_name      = "",
-                                const std::string& net_endpoint   = "");
+        // ──── Lookup ────
 
-    /// Withdraw a previously announced endpoint.
-    void withdraw(uint64_t handle);
+        /// Synchronous lookup of matching remote endpoints.
+        std::vector<TopicEndpoint> lookup(
+            const std::string &topic_name,
+            TopicEndpoint::Role role,
+            uint64_t type_hash = 0) const;
 
-    // ──── Lookup ────
+        /// Block until at least one matching endpoint appears, or timeout.
+        std::vector<TopicEndpoint> waitForEndpoints(
+            const std::string &topic_name,
+            TopicEndpoint::Role role,
+            uint64_t type_hash = 0,
+            std::chrono::milliseconds timeout = std::chrono::milliseconds{500}) const;
 
-    /// Synchronous lookup of matching remote endpoints.
-    std::vector<TopicEndpoint> lookup(
-        const std::string& topic_name,
-        TopicEndpoint::Role role,
-        uint64_t type_hash = 0) const;
+        // ──── Event listeners ────
 
-    /// Block until at least one matching endpoint appears, or timeout.
-    std::vector<TopicEndpoint> waitForEndpoints(
-        const std::string& topic_name,
-        TopicEndpoint::Role role,
-        uint64_t type_hash = 0,
-        std::chrono::milliseconds timeout = std::chrono::milliseconds{500}) const;
+        /// Subscribe to discovery events for a given topic. Returns a listener ID.
+        uint64_t addListener(const std::string &topic_name, DiscoveryCallback callback);
 
-    // ──── Event listeners ────
+        /// Remove a previously registered listener.
+        void removeListener(uint64_t listener_id);
 
-    /// Subscribe to discovery events for a given topic. Returns a listener ID.
-    uint64_t addListener(const std::string& topic_name, DiscoveryCallback callback);
+        // ──── Lifecycle ────
 
-    /// Remove a previously registered listener.
-    void removeListener(uint64_t listener_id);
+        /// Start the multicast listener and heartbeat threads.
+        void start();
 
-    // ──── Lifecycle ────
+        /// Stop everything and withdraw all local endpoints.
+        void stop();
 
-    /// Start the multicast listener and heartbeat threads.
-    void start();
+    private:
+        DiscoveryService(size_t domain_id);
+        DiscoveryService(const DiscoveryService &) = delete;
+        DiscoveryService &operator=(const DiscoveryService &) = delete;
 
-    /// Stop everything and withdraw all local endpoints.
-    void stop();
-
-private:
-    DiscoveryService(size_t domain_id);
-    DiscoveryService(const DiscoveryService&) = delete;
-    DiscoveryService& operator=(const DiscoveryService&) = delete;
-
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
-};
+        struct Impl;
+        std::unique_ptr<Impl> impl_;
+    };
 
 } // namespace lux::communication::discovery

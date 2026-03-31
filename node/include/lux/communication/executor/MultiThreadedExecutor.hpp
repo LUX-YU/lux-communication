@@ -3,8 +3,8 @@
 #include <lux/communication/ExecutorBase.hpp>
 #include <lux/cxx/concurrent/ThreadPool.hpp>
 
-namespace lux::communication {
-
+namespace lux::communication
+{
 	class LUX_COMMUNICATION_PUBLIC MultiThreadedExecutor : public ExecutorBase
 	{
 	public:
@@ -13,7 +13,7 @@ namespace lux::communication {
 
 		void spinSome() override;
 		void stop() override;
-		void handleSubscriber(SubscriberBase* sub) override;
+		void handleSubscriber(SubscriberBase *sub) override;
 
 	private:
 		lux::cxx::ThreadPool thread_pool_;
