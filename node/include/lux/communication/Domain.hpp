@@ -49,7 +49,7 @@ namespace lux::communication
 			new_topic->setTopicName(topicName);
 			new_topic->setTypeInfo(type_info);
             auto topic_idx = topics_.insert(new_topic);
-            new_topic->setIdInDoamin(topic_idx);
+            new_topic->setIdInDomain(topic_idx);
             topic_index_map_[key] = topic_idx;
             return new_topic;
         }

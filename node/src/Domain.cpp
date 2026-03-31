@@ -10,7 +10,7 @@ namespace lux::communication {
     void Domain::removeTopic(TopicBase* topic_ptr)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!topics_.contains(topic_ptr->idInDoamin()))
+        if (!topics_.contains(topic_ptr->idInDomain()))
         {
             return;
         }
@@ -21,7 +21,7 @@ namespace lux::communication {
         );
 
         topic_index_map_.erase(key);
-		topics_.erase(topic_ptr->idInDoamin());
-        topic_ptr->setIdInDoamin(std::numeric_limits<size_t>::max());
+		topics_.erase(topic_ptr->idInDomain());
+        topic_ptr->setIdInDomain(std::numeric_limits<size_t>::max());
     }
 } // namespace lux::communication
