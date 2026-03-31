@@ -1,17 +1,59 @@
 #pragma once
+
 #include <lux/communication/transport/ShmRingBuffer.hpp>
 #include <lux/communication/visibility.h>
+
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <thread>
 
-#ifdef _WIN32
-#  include <intrin.h>          // _mm_pause
-#else
-#  include <immintrin.h>       // _mm_pause (x86)
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
+#  include <intrin.h>
+#endif
+
+#if (defined(__arm__) || defined(__aarch64__)) && defined(__has_include)
+#  if __has_include(<arm_acle.h>)
+#    include <arm_acle.h>
+#    define LUX_HAS_ARM_ACLE 1
+#  endif
 #endif
 
 namespace lux::communication::transport {
+
+// =====================================
+// CPU relax / spin hint
+// =====================================
+
+namespace detail {
+
+inline void cpuRelax() noexcept
+{
+#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
+    // MSVC on x86/x64
+    _mm_pause();
+
+#elif defined(__i386__) || defined(__x86_64__)
+    // GCC / Clang on x86/x86_64
+    // GCC documents this builtin as always available on x86 targets.
+    __builtin_ia32_pause();
+
+#elif defined(LUX_HAS_ARM_ACLE)
+    // Arm / AArch64 with ACLE available
+    // YIELD is the right hint for spin-style waiting.
+    __yield();
+
+#elif defined(__arm__) || defined(__aarch64__)
+    // Arm / AArch64 fallback when arm_acle.h is unavailable
+    __asm__ __volatile__("yield");
+
+#else
+    // Fully generic fallback
+    std::this_thread::yield();
+#endif
+}
+
+} // namespace detail
 
 // ──── Notifier (Publisher side) ────
 
@@ -30,7 +72,8 @@ public:
     void wake();
 
 private:
-    NotifyBlock* block_;
+    NotifyBlock* block_{nullptr};
+
 #ifdef _WIN32
     void* hEvent_ = nullptr;   // HANDLE
 #endif
@@ -40,13 +83,14 @@ private:
 
 /// Platform-specific kernel wait (implemented in ShmNotifyPosix.cpp / ShmNotifyWin.cpp).
 /// Returns true if woken, false if timed-out.
-LUX_COMMUNICATION_PUBLIC bool kernelWait(NotifyBlock* block,
-                uint32_t expected_futex_val,
-                std::chrono::microseconds timeout
+LUX_COMMUNICATION_PUBLIC bool kernelWait(
+    NotifyBlock* block,
+    uint32_t expected_futex_val,
+    std::chrono::microseconds timeout
 #ifdef _WIN32
-                , void* hEvent
+    , void* hEvent
 #endif
-                );
+);
 
 /// Open / create the platform notification object for the reader side.
 /// Linux:  no-op, returns nullptr.
@@ -77,7 +121,8 @@ public:
     bool spinWait(CheckFn&& check_fn, int spin_count = 1000);
 
 private:
-    NotifyBlock* block_;
+    NotifyBlock* block_{nullptr};
+
 #ifdef _WIN32
     void* hEvent_ = nullptr;
 #endif
@@ -86,43 +131,57 @@ private:
 // ──── Inline template implementations ────
 
 template<typename CheckFn>
-bool ShmWaiter::spinWait(CheckFn&& check_fn, int spin_count) {
+bool ShmWaiter::spinWait(CheckFn&& check_fn, int spin_count)
+{
     for (int i = 0; i < spin_count; ++i) {
-        if (check_fn()) return true;
-        _mm_pause();
+        if (check_fn()) {
+            return true;
+        }
+        detail::cpuRelax();
     }
     return false;
 }
 
 template<typename CheckFn>
-bool ShmWaiter::wait(CheckFn&& check_fn, std::chrono::microseconds timeout) {
-    // Phase 1: Spin (~1000 × PAUSE ≈ 1-2 μs)
-    if (spinWait(check_fn, 1000))
+bool ShmWaiter::wait(CheckFn&& check_fn, std::chrono::microseconds timeout)
+{
+    // Phase 1: short spin with architecture-appropriate hint
+    if (spinWait(std::forward<CheckFn>(check_fn), 1000)) {
         return true;
+    }
 
-    // Phase 2: Yield (~10 iterations)
+    // Phase 2: scheduler-friendly yield
     for (int i = 0; i < 10; ++i) {
-        if (check_fn()) return true;
+        if (check_fn()) {
+            return true;
+        }
         std::this_thread::yield();
     }
 
-    // Phase 3: Kernel wait
-    if (timeout.count() <= 0)
-        return check_fn();   // non-blocking: last chance
+    // Phase 3: kernel wait
+    if (timeout.count() <= 0) {
+        return check_fn();
+    }
 
-    // Snapshot the futex word so the kernel can detect spurious wakeups.
+    // Snapshot futex/event word so the kernel side can detect changes.
     uint32_t expected = block_->futex_word.load(std::memory_order_relaxed);
 
-    // One last check before costly syscall.
-    if (check_fn()) return true;
+    // Last cheap check before entering the kernel
+    if (check_fn()) {
+        return true;
+    }
 
-    bool woken = kernelWait(block_, expected, timeout
+    const bool woken = kernelWait(
+        block_,
+        expected,
+        timeout
 #ifdef _WIN32
         , hEvent_
 #endif
     );
     (void)woken;
 
+    // Re-check predicate after wake or timeout
     return check_fn();
 }
 
