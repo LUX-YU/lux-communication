@@ -4,7 +4,6 @@
 #include <atomic>
 #include <vector>
 #include <functional>
-#include <format>
 #include <cassert>
 #include <limits>
 
@@ -651,7 +650,7 @@ static void testMultiThreadedExecutorWithCallbackGroups(int thread_count = 4, in
 
 	// 8) Publish some messages
 	for (int i = 0; i < 10; ++i) {
-		pub->emplace(std::format("Msg # {}", i));
+		pub->emplace(std::string("Msg # ") + std::to_string(i));
 	}
 
 	// 9) Wait a bit for callbacks to complete
