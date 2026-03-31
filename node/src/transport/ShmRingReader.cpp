@@ -1,6 +1,7 @@
 #include <lux/communication/transport/ShmRingReader.hpp>
 #include <lux/communication/platform/PlatformDefs.hpp>
 #include <lux/communication/transport/FrameHeader.hpp>
+#include <lux/communication/transport/CpuRelax.hpp>
 
 #include <cassert>
 #include <cstring>
@@ -123,7 +124,7 @@ ShmRingReader::acquireReadView(std::chrono::microseconds timeout) {
     // Spin until the writer marks the slot as Ready (should be near-instant).
     while (slot->state.load(std::memory_order_acquire)
             != static_cast<uint32_t>(SlotState::Ready)) {
-        _mm_pause();
+        detail::cpuRelax();
     }
 
     slot->state.store(static_cast<uint32_t>(SlotState::Reading),

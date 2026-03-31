@@ -1,6 +1,7 @@
 #pragma once
 
 #include <lux/communication/transport/ShmRingBuffer.hpp>
+#include <lux/communication/transport/CpuRelax.hpp>
 #include <lux/communication/visibility.h>
 
 #include <atomic>
@@ -8,16 +9,7 @@
 #include <cstdint>
 #include <thread>
 
-#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-#  include <intrin.h>
-#endif
 
-#if (defined(__arm__) || defined(__aarch64__)) && defined(__has_include)
-#  if __has_include(<arm_acle.h>)
-#    include <arm_acle.h>
-#    define LUX_HAS_ARM_ACLE 1
-#  endif
-#endif
 
 namespace lux::communication::transport {
 
@@ -25,38 +17,8 @@ namespace lux::communication::transport {
 // CPU relax / spin hint
 // =====================================
 
-namespace detail {
-
-inline void cpuRelax() noexcept
-{
-#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-    // MSVC on x86/x64
-    _mm_pause();
-
-#elif defined(__i386__) || defined(__x86_64__)
-    // GCC / Clang on x86/x86_64
-    // GCC documents this builtin as always available on x86 targets.
-    __builtin_ia32_pause();
-
-#elif defined(LUX_HAS_ARM_ACLE)
-    // Arm / AArch64 with ACLE available
-    // YIELD is the right hint for spin-style waiting.
-    __yield();
-
-#elif defined(__arm__) || defined(__aarch64__)
-    // Arm / AArch64 fallback when arm_acle.h is unavailable
-    __asm__ __volatile__("yield");
-
-#else
-    // Fully generic fallback
-    std::this_thread::yield();
-#endif
-}
-
-} // namespace detail
 
 // ──── Notifier (Publisher side) ────
-
 class LUX_COMMUNICATION_PUBLIC ShmNotifier {
 public:
     /// Bind to a ring's NotifyBlock.
