@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cassert>
 #include <cstddef>
 #include <vector>
-#include <unordered_map>
 #include <lux/communication/ExecEntry.hpp>
 
 namespace lux::communication {
@@ -12,9 +12,6 @@ namespace lux::communication {
      */
     struct ReorderBufferStats {
         uint64_t ring_put_ok = 0;           // Successful ring insertions
-        uint64_t ring_reject_too_far = 0;   // Ring rejected: seq too far ahead
-        uint64_t ring_reject_collision = 0; // Ring rejected: slot collision
-        uint64_t fallback_put = 0;          // Fallback hashmap insertions
         uint64_t max_window = 0;            // Max observed (seq - next_seq)
         uint64_t discarded_old = 0;         // Entries discarded (seq < next_seq)
     };
@@ -112,55 +109,39 @@ namespace lux::communication {
     };
 
     /**
-     * @brief Reorder buffer with ring buffer (fast path) and hashmap fallback (slow path).
-     *        Ensures O(1) average complexity even with occasional large out-of-order spans.
+     * @brief Ring-only reorder buffer.
+     *        Adaptive drain throttling in SeqOrderedExecutor guarantees the
+     *        out-of-order window stays within ring capacity, so no fallback
+     *        hashmap is needed.  O(1) insert and pop.
      */
     class ReorderBuffer {
     public:
         explicit ReorderBuffer(size_t ring_cap_pow2 = 1 << 16)  // 65536
             : ring_(ring_cap_pow2), next_seq_(1)
         {
-            // Pre-reserve fallback to avoid rehash storms
-            fallback_.reserve(ring_cap_pow2 / 2);
-            fallback_.max_load_factor(0.9f);
         }
 
         /**
          * @brief Insert an entry into the reorder buffer.
-         *        Uses ring buffer as fast path, fallback hashmap for edge cases.
+         *        Must fit within ring window (guaranteed by adaptive throttle).
          */
         void put(ExecEntry&& e) {
             uint64_t seq = e.seq;
-            
-            // Track max window for diagnostics
-            if (seq >= next_seq_) {
-                uint64_t window = seq - next_seq_;
-                if (window > stats_.max_window) {
-                    stats_.max_window = window;
-                }
-            }
-            
-            // Check eligibility for ring before attempting
-            if (seq >= next_seq_ && (seq - next_seq_) < ring_.capacity()) {
-                // Try ring (fast path)
-                if (ring_.try_put(std::move(e), next_seq_)) {
-                    ++stats_.ring_put_ok;
-                    return;
-                }
-                // Ring rejected due to collision
-                ++stats_.ring_reject_collision;
-            } else if (seq >= next_seq_) {
-                // Too far ahead for ring
-                ++stats_.ring_reject_too_far;
-            } else {
-                // Too old, discard
+
+            if (seq < next_seq_) {
                 ++stats_.discarded_old;
                 return;
             }
-            
-            // Fallback (slow path): too far ahead or collision
-            fallback_.emplace(seq, std::move(e));
-            ++stats_.fallback_put;
+
+            // Track max window for diagnostics
+            uint64_t window = seq - next_seq_;
+            if (window > stats_.max_window)
+                stats_.max_window = window;
+
+            bool ok = ring_.try_put(std::move(e), next_seq_);
+            assert(ok && "ReorderBuffer: entry outside ring window — throttle bug?");
+            (void)ok;  // suppress unused-variable warning in release
+            ++stats_.ring_put_ok;
         }
 
         /**
@@ -169,23 +150,12 @@ namespace lux::communication {
          * @return true if found and popped, false if next_seq not available
          */
         bool try_pop_next(ExecEntry& out) {
-            // Try ring first (fast path)
             if (auto* p = ring_.get(next_seq_)) {
                 out = std::move(*p);
                 ring_.erase(next_seq_);
                 ++next_seq_;
                 return true;
             }
-
-            // Try fallback (slow path)
-            auto it = fallback_.find(next_seq_);
-            if (it != fallback_.end()) {
-                out = std::move(it->second);
-                fallback_.erase(it);
-                ++next_seq_;
-                return true;
-            }
-
             return false;
         }
 
@@ -200,15 +170,11 @@ namespace lux::communication {
         void set_next_seq(uint64_t seq) { next_seq_ = seq; }
 
         size_t pending_size() const {
-            return ring_.pending_count() + fallback_.size();
+            return ring_.pending_count();
         }
 
         size_t ring_capacity() const {
             return ring_.capacity();
-        }
-
-        size_t fallback_size() const {
-            return fallback_.size();
         }
 
         /**
@@ -223,7 +189,6 @@ namespace lux::communication {
 
     private:
         ReorderRing ring_;
-        std::unordered_map<uint64_t, ExecEntry> fallback_;
         uint64_t next_seq_;
         ReorderBufferStats stats_;
     };

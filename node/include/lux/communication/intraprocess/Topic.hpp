@@ -3,6 +3,8 @@
 #include <lux/communication/TopicBase.hpp>
 #include <lux/communication/Domain.hpp>
 #include <lux/communication/Queue.hpp>
+#include <lux/communication/CallbackGroupBase.hpp>
+#include <lux/communication/ExecutorBase.hpp>
 
 namespace lux::communication::intraprocess
 {
@@ -20,7 +22,7 @@ namespace lux::communication::intraprocess
         ~Topic() override = default;
 
         /**
-         * @brief Distribute messages (zero-copy) with global sequence numbers.
+         * @brief Distribute messages (zero-copy) with per-executor sequence numbers.
          *        Uses Copy-On-Write snapshot for lock-free subscriber iteration.
          */
         void publish(message_t<T> msg)
@@ -32,24 +34,17 @@ namespace lux::communication::intraprocess
 
             const size_t n = snapshot->size();
 
-            // Fast path: single subscriber, just move the message
-            if (n == 1)
-            {
-                auto sub = static_cast<Subscriber<T> *>((*snapshot)[0]);
-                // Single subscriber gets seq from domain with n=1
-                const uint64_t seq = this->domain().allocateSeqRange(1);
-                sub->enqueue(seq, std::move(msg));
-                return;
-            }
-
-            // Allocate a range of consecutive sequence numbers
-            const uint64_t base = this->domain().allocateSeqRange(n);
-
-            // Distribute message with consecutive sequence numbers
+            // Allocate per-executor sequence numbers so that each executor
+            // only sees a contiguous sequence stream for its own subscribers.
             for (size_t i = 0; i < n; ++i)
             {
                 auto sub = static_cast<Subscriber<T> *>((*snapshot)[i]);
-                sub->enqueue(base + static_cast<uint64_t>(i), msg);
+                auto *exec = sub->callbackGroup()->executor();
+                const uint64_t seq = exec ? exec->allocateSeq() : 0;
+                if (i + 1 < n)
+                    sub->enqueue(seq, msg);           // copy for non-last
+                else
+                    sub->enqueue(seq, std::move(msg)); // move for last
             }
         }
     };

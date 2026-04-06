@@ -2,6 +2,7 @@
 #include "lux/communication/CallbackGroupBase.hpp"
 #include "lux/communication/discovery/DiscoveryService.hpp"
 #include "lux/communication/executor/SingleThreadedExecutor.hpp"
+#include <thread>
 
 namespace lux::communication
 {
@@ -80,6 +81,7 @@ namespace lux::communication
         while (flag)
         {
             exec.spinSome();
+            std::this_thread::yield();
         }
         exec.removeNode(node);
     }

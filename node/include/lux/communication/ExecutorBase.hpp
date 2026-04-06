@@ -125,6 +125,15 @@ namespace detail {
 			}
 		}
 
+		/// Allocate a per-executor sequence number for ordered delivery.
+		/// Each executor maintains its own independent sequence space so that
+		/// SeqOrderedExecutor never blocks on sequence gaps caused by messages
+		/// delivered to a different executor.
+		uint64_t allocateSeq()
+		{
+			return exec_seq_.fetch_add(1, std::memory_order_relaxed);
+		}
+
 	protected:
 		using NodeList	 = lux::cxx::AutoSparseSet<NodeBase*>;
 		using ReadyQueue = moodycamel::ConcurrentQueue<SubscriberBase*>;
@@ -150,6 +159,9 @@ namespace detail {
 		std::atomic<bool>						spinning_{ false };
 		std::mutex								cv_mutex_;
 		std::condition_variable					cv_;
+
+		/// Per-executor sequence counter (used by SeqOrderedExecutor).
+		std::atomic<uint64_t>					exec_seq_{ 1 };
 	};
 
 } // namespace lux::communication

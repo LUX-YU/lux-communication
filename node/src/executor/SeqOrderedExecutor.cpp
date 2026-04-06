@@ -22,94 +22,139 @@ namespace lux::communication
         }
     }
 
+    // ── Helpers ──
+
+    size_t SeqOrderedExecutor::collectUniqueReady()
+    {
+        size_t n = 0;
+        SubscriberBase* sub = nullptr;
+        while (n < kMaxReadyBatch && ready_queue_.try_dequeue(sub))
+        {
+            (void)ready_sem_.try_acquire_for(std::chrono::milliseconds(0));
+            if (!sub) continue;
+
+            // Linear-scan dedup (batch is tiny, typically 2-4 subscribers)
+            bool dup = false;
+            for (size_t j = 0; j < n; ++j)
+            {
+                if (ready_batch_[j] == sub) { dup = true; break; }
+            }
+            if (!dup)
+                ready_batch_[n++] = sub;
+        }
+        return n;
+    }
+
+    void SeqOrderedExecutor::drainAndExecute(size_t batch_count)
+    {
+        // Track per-subscriber high-water mark for adaptive throttle.
+        uint64_t sub_max_seq[kMaxReadyBatch] = {};
+
+        bool any_drained = true;
+        while (any_drained)
+        {
+            any_drained = false;
+            const uint64_t next = buffer_.next_seq();
+
+            for (size_t i = 0; i < batch_count; ++i)
+            {
+                // Adaptive: if this subscriber is far ahead, throttle to 1
+                // so the gap-filling subscriber(s) can catch up.
+                size_t count = kMaxDrainPerSubscriber;
+                if (sub_max_seq[i] > next &&
+                    (sub_max_seq[i] - next) >= kMaxWindow)
+                {
+                    count = 1;
+                }
+
+                drain_buffer_.clear();
+                size_t n = ready_batch_[i]->drainExecSome(
+                    drain_buffer_, count);
+                if (n > 0)
+                {
+                    any_drained = true;
+                    if (!drain_buffer_.empty())
+                        sub_max_seq[i] = drain_buffer_.back().seq;
+                    for (auto& e : drain_buffer_)
+                        buffer_.put(std::move(e));
+                }
+            }
+            executeConsecutive();
+
+            // Absorb any newly-ready subscribers (handles the race where
+            // a subscriber is notified after we started this loop).
+            SubscriberBase* sub = nullptr;
+            while (batch_count < kMaxReadyBatch &&
+                   ready_queue_.try_dequeue(sub))
+            {
+                (void)ready_sem_.try_acquire_for(
+                    std::chrono::milliseconds(0));
+                if (!sub) continue;
+                bool dup = false;
+                for (size_t j = 0; j < batch_count; ++j)
+                    if (ready_batch_[j] == sub) { dup = true; break; }
+                if (!dup)
+                {
+                    ready_batch_[batch_count] = sub;
+                    sub_max_seq[batch_count] = 0;
+                    ++batch_count;
+                    any_drained = true;
+                }
+            }
+        }
+    }
+
+    // ── Main loops ──
+
     void SeqOrderedExecutor::spin()
     {
         if (spinning_.exchange(true))
             return;
 
-        // Pre-allocate drain buffer
         drain_buffer_.reserve(kMaxDrainPerSubscriber * 2);
 
         while (spinning_)
         {
-            // Strategy: "Execute first, drain on gap"
-            // Try to execute consecutive entries first
-            size_t executed = executeConsecutive();
-            
-            if (executed > 0)
+            // Execute consecutive entries first
+            if (executeConsecutive() > 0)
+                continue;
+
+            // Gap at next_seq — collect unique ready subscribers, then interleaved drain
+            size_t batch_count = collectUniqueReady();
+            if (batch_count > 0)
             {
-                // Made progress executing, continue without waiting
+                drainAndExecute(batch_count);
                 continue;
             }
             
-            // Can't execute (gap at next_seq), need to drain more subscribers
-            // Try non-blocking drain first
-            SubscriberBase* sub = nullptr;
-            if (ready_sem_.try_acquire_for(std::chrono::milliseconds(0)))
-            {
-                if (ready_queue_.try_dequeue(sub) && sub)
-                {
-                    drainOneSubscriber(sub);
-                    continue;  // Try executing again
-                }
-            }
-            
-            // No ready subscribers available, wait with timeout
-            sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
+            // No ready subscribers available, block-wait for one
+            auto sub = waitOneReady();
             if (sub)
-            {
                 drainOneSubscriber(sub);
-            }
         }
     }
 
     void SeqOrderedExecutor::spinSome()
     {
-        bool made_progress = false;
-
-        // Strategy: "Execute first, drain on gap"
-        // 1. Try to execute as many consecutive entries as possible
-        size_t executed = executeConsecutive();
-        if (executed > 0)
+        for (;;)
         {
-            made_progress = true;
-        }
+            // Collect unique ready subscribers (deduped)
+            size_t batch_count = collectUniqueReady();
 
-        // 2. If we can't execute (gap), drain one ready subscriber
-        SubscriberBase* sub = nullptr;
-        if (ready_sem_.try_acquire_for(std::chrono::milliseconds(0)))
-        {
-            if (ready_queue_.try_dequeue(sub) && sub)
+            if (batch_count > 0)
             {
-                if (drainOneSubscriber(sub))
-                {
-                    made_progress = true;
-                }
-                
-                // After draining, try executing again
-                executed = executeConsecutive();
-                if (executed > 0)
-                {
-                    made_progress = true;
-                }
+                drainAndExecute(batch_count);
+                continue;
             }
-        }
 
-        // 3. If no progress, wait briefly for new ready subscriber
-        if (!made_progress)
-        {
-            sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
-            if (sub)
-            {
-                drainOneSubscriber(sub);
-                executeConsecutive();
-            }
+            // No more ready subscribers — execute any remaining entries
+            if (executeConsecutive() == 0)
+                break;
         }
     }
 
     void SeqOrderedExecutor::handleSubscriber(SubscriberBase* sub)
     {
-        // Delegate to bounded drain
         drainOneSubscriber(sub);
     }
 
@@ -118,17 +163,11 @@ namespace lux::communication
         if (!sub)
             return false;
 
-        // Clear and reuse drain buffer
         drain_buffer_.clear();
-        
-        // Bounded drain: only drain a small batch to enable round-robin
         size_t drained = sub->drainExecSome(drain_buffer_, kMaxDrainPerSubscriber);
         
-        // Put all drained entries into reorder buffer
         for (auto& e : drain_buffer_)
-        {
             buffer_.put(std::move(e));
-        }
         
         return drained > 0;
     }
@@ -138,10 +177,9 @@ namespace lux::communication
         size_t executed = 0;
         ExecEntry entry;
         
-        // Execute as many consecutive entries as available
         while (buffer_.try_pop_next(entry))
         {
-            entry.invoke(entry.obj, std::move(entry.msg));  // Move msg to avoid refcount
+            entry.invoke(entry.obj, std::move(entry.msg));
             ++executed;
         }
         

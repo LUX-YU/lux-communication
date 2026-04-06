@@ -15,6 +15,7 @@
 
 #include <lux/communication/PublisherBase.hpp>
 #include <lux/communication/PublishOptions.hpp>
+#include <lux/communication/ExecutorBase.hpp>
 #include <lux/communication/MessageTraits.hpp>
 #include <lux/communication/ChannelKind.hpp>
 #include <lux/communication/TransportSelector.hpp>
@@ -562,19 +563,18 @@ namespace lux::communication
 
         const size_t n = snapshot->size();
 
-        if (n == 1)
-        {
-            auto *sub = static_cast<Subscriber<T> *>((*snapshot)[0]);
-            const uint64_t seq = node_->domain().allocateSeqRange(1);
-            sub->enqueue(seq, std::move(msg));
-            return;
-        }
-
-        const uint64_t base = node_->domain().allocateSeqRange(n);
+        // Allocate per-executor sequence numbers so that each executor
+        // only sees a contiguous sequence stream for its own subscribers,
+        // avoiding cross-executor sequence gaps that block SeqOrderedExecutor.
         for (size_t i = 0; i < n; ++i)
         {
             auto *sub = static_cast<Subscriber<T> *>((*snapshot)[i]);
-            sub->enqueue(base + static_cast<uint64_t>(i), msg);
+            auto *exec = sub->callbackGroup()->executor();
+            const uint64_t seq = exec ? exec->allocateSeq() : 0;
+            if (i + 1 < n)
+                sub->enqueue(seq, msg);           // copy for non-last
+            else
+                sub->enqueue(seq, std::move(msg)); // move for last
         }
     }
 

@@ -16,10 +16,13 @@ namespace lux::communication
 
     void TimeOrderedExecutor::spinSome()
     {
-        auto sub = waitOneReadyTimeout(std::chrono::milliseconds(1));
-        if (sub)
+        // Drain all currently ready subscribers (non-blocking).
+        SubscriberBase* sub = nullptr;
+        while (ready_queue_.try_dequeue(sub))
         {
-            handleSubscriber(sub);
+            (void)ready_sem_.try_acquire_for(std::chrono::milliseconds(0));
+            if (sub)
+                handleSubscriber(sub);
         }
         processReadyEntries();
     }

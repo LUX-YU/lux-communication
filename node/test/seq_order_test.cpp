@@ -45,7 +45,6 @@ int main()
     std::cout << "=== SeqOrderedExecutor Order & Performance Test ===" << std::endl;
 
     // Track received messages
-    std::mutex received_mutex;
     std::vector<uint64_t> received_orders;  // Global publish orders as received
     std::atomic<int> total_received{0};
 
@@ -73,9 +72,8 @@ int main()
         "/topic_a",
         [&](const TestMessage& msg)
         {
-            std::lock_guard<std::mutex> lock(received_mutex);
             received_orders.push_back(msg.publish_order);
-            total_received++;
+            total_received.fetch_add(1, std::memory_order_relaxed);
         }
     );
 
@@ -83,9 +81,8 @@ int main()
         "/topic_b",
         [&](const TestMessage& msg)
         {
-            std::lock_guard<std::mutex> lock(received_mutex);
             received_orders.push_back(msg.publish_order);
-            total_received++;
+            total_received.fetch_add(1, std::memory_order_relaxed);
         }
     );
 
@@ -178,21 +175,9 @@ int main()
     std::cout << "\n=== ReorderBuffer Diagnostics ===" << std::endl;
     const auto& stats = executor.stats();
     std::cout << "Ring put OK:       " << stats.ring_put_ok << std::endl;
-    std::cout << "Ring reject (far): " << stats.ring_reject_too_far << std::endl;
-    std::cout << "Ring reject (col): " << stats.ring_reject_collision << std::endl;
-    std::cout << "Fallback put:      " << stats.fallback_put << std::endl;
     std::cout << "Max window:        " << stats.max_window << std::endl;
     std::cout << "Discarded old:     " << stats.discarded_old << std::endl;
     std::cout << "Final pending:     " << executor.pending_size() << std::endl;
-    std::cout << "Final fallback:    " << executor.fallback_size() << std::endl;
-
-    // Calculate ring hit rate
-    uint64_t total_puts = stats.ring_put_ok + stats.fallback_put;
-    if (total_puts > 0) {
-        double ring_hit_rate = 100.0 * stats.ring_put_ok / total_puts;
-        std::cout << "Ring hit rate:     " << std::fixed << std::setprecision(2) 
-                  << ring_hit_rate << "%" << std::endl;
-    }
 
     // Verify ordering
     std::cout << "\n=== Order Verification ===" << std::endl;
