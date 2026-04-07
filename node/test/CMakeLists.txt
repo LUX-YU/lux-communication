@@ -36,3 +36,9 @@ target_include_directories(qos_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pincl
 add_executable(timeorder_executor_test timeorder_executor_test.cpp)
 target_link_libraries(timeorder_executor_test PRIVATE lux::communication::node)
 target_include_directories(timeorder_executor_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../pinclude)
+
+add_executable(executor_benchmark_test executor_benchmark_test.cpp)
+target_link_libraries(executor_benchmark_test PRIVATE lux::communication::node)
+
+add_executable(executor_feature_test executor_feature_test.cpp)
+target_link_libraries(executor_feature_test PRIVATE lux::communication::node)

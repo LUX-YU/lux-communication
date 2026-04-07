@@ -7,6 +7,7 @@ namespace lux::communication
         : time_offset_(time_offset)
     {
         spinning_.store(false);
+        drain_buffer_.reserve(64);
     }
 
     TimeOrderedExecutor::~TimeOrderedExecutor()
@@ -34,10 +35,32 @@ namespace lux::communication
 
         while (spinning_)
         {
-            spinSome();
+            // Execute any buffered entries that are ready
+            processReadyEntries();
+
+            // Try to drain ready subscribers without blocking
+            SubscriberBase* sub = nullptr;
+            bool got_work = false;
+            while (ready_queue_.try_dequeue(sub))
+            {
+                (void)ready_sem_.try_acquire_for(std::chrono::milliseconds(0));
+                if (sub)
+                {
+                    handleSubscriber(sub);
+                    got_work = true;
+                }
+            }
+
+            if (got_work)
+                continue;
+
+            // No work available — block-wait for the next ready subscriber.
+            // This avoids 100% CPU polling when idle.
+            sub = waitOneReady();
             if (!spinning_)
                 break;
-            doWait();
+            if (sub)
+                handleSubscriber(sub);
         }
     }
 
@@ -45,6 +68,7 @@ namespace lux::communication
     {
         if (spinning_.exchange(false))
         {
+            ready_sem_.release();
             notifyCondition();
         }
     }
@@ -69,50 +93,40 @@ namespace lux::communication
         if (!sub)
             return;
 
-        std::vector<TimeExecEntry> entries;
-        entries.reserve(16);
-        sub->drainAll(entries);
-        for (auto& e : entries)
+        // offset=0 fast path: invoke callbacks directly, no reorder needed.
+        // This avoids std::function allocation overhead from drainAll().
+        if (time_offset_.count() == 0)
+        {
+            sub->takeAll();
+            return;
+        }
+
+        drain_buffer_.clear();
+        sub->drainAll(drain_buffer_);
+
+        for (auto& e : drain_buffer_)
         {
             if (e.timestamp_ns > max_timestamp_seen_)
-            {
                 max_timestamp_seen_ = e.timestamp_ns;
-            }
             buffer_.push(std::move(e));
         }
     }
 
     void TimeOrderedExecutor::processReadyEntries()
     {
-        uint64_t cutoff = 0;
         if (time_offset_.count() == 0)
-        {
-            cutoff = UINT64_MAX;
-        }
-        else
-        {
-            if (max_timestamp_seen_ > static_cast<uint64_t>(time_offset_.count()))
-            {
-                cutoff = max_timestamp_seen_ - static_cast<uint64_t>(time_offset_.count());
-            }
-            else
-            {
-                cutoff = 0;
-            }
-        }
+            return;  // offset=0 path executes directly in handleSubscriber
+
+        uint64_t cutoff = 0;
+        if (max_timestamp_seen_ > static_cast<uint64_t>(time_offset_.count()))
+            cutoff = max_timestamp_seen_ - static_cast<uint64_t>(time_offset_.count());
 
         while (!buffer_.empty() && buffer_.top().timestamp_ns <= cutoff)
         {
-            // Fix UB: copy the entry before pop to avoid dangling reference
             TimeExecEntry entry = std::move(const_cast<TimeExecEntry&>(buffer_.top()));
             buffer_.pop();
             if (entry.invoker) entry.invoker();
         }
-    }
-
-    void TimeOrderedExecutor::doWait()
-    {
-        return;
     }
 
 } // namespace lux::communication

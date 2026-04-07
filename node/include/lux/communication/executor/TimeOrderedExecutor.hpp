@@ -1,6 +1,7 @@
 #pragma once
 
 #include <queue>
+#include <vector>
 #include <lux/communication/ExecutorBase.hpp>
 #include <lux/communication/TimeExecEntry.hpp>
 
@@ -25,10 +26,10 @@ namespace lux::communication
 
 	private:
 		void processReadyEntries();
-		void doWait();
 
 	private:
 		std::priority_queue<TimeExecEntry> 	buffer_;
+		std::vector<TimeExecEntry>			drain_buffer_;
 		std::chrono::nanoseconds 			time_offset_;
 		uint64_t 							max_timestamp_seen_{0};
 	};
