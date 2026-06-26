@@ -16,6 +16,8 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		explicit ImageS(const char* path);
 		// copy
 		ImageS(int width, int height, int channels, const void* data);
+		// element_size = bytes per channel element (1=8U, 2=16U, 4=32F).
+		ImageS(int width, int height, int channels, int element_size, const void* data);
 		ImageS(const ImageS&);
 		ImageS& operator=(const ImageS&);
 		ImageS(ImageS&&) noexcept;
@@ -28,6 +30,8 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		int width() const;
 		int height() const;
 		int channels() const;
+		/// bytes per channel element (1=8U, 2=16U, 4=32F). 1 for legacy 8-bit images.
+		int elementSize() const;
 		const void* data() const;
 		void* data();
 
@@ -35,6 +39,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		int		_width{ 0 };
 		int		_height{ 0 };
 		int		_channels{ 0 };
+		int		_element_size{ 1 };   // bytes per channel element (1=8U,2=16U,4=32F)
 		void*	_data{ nullptr };
 	};
 }

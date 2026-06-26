@@ -19,7 +19,20 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		_width = width;
 		_height = height;
 		_channels = channels;
-		size_t image_size = _width * _height * _channels;
+		_element_size = 1;
+		size_t image_size = (size_t)_width * _height * _channels * _element_size;
+
+		_data = STBI_MALLOC(image_size);
+		memcpy(_data, data, image_size);
+	}
+
+	ImageS::ImageS(int width, int height, int channels, int element_size, const void* data)
+	{
+		_width = width;
+		_height = height;
+		_channels = channels;
+		_element_size = element_size;
+		size_t image_size = (size_t)_width * _height * _channels * _element_size;
 
 		_data = STBI_MALLOC(image_size);
 		memcpy(_data, data, image_size);
@@ -30,7 +43,8 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		_width = other._width;
 		_height = other._height;
 		_channels = other._channels;
-		size_t image_size = _width * _height * _channels;
+		_element_size = other._element_size;
+		size_t image_size = (size_t)_width * _height * _channels * _element_size;
 
 		_data = STBI_MALLOC(image_size);
 		memcpy(_data, other.data(), image_size);
@@ -38,8 +52,8 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 
 	ImageS& ImageS::operator=(const ImageS& other)
 	{
-		size_t image_size = other._width * other._height * other._channels;
-		if (_width == other._width && _height == other._height && _channels == other._channels)
+		size_t image_size = (size_t)other._width * other._height * other._channels * other._element_size;
+		if (_width == other._width && _height == other._height && _channels == other._channels && _element_size == other._element_size)
 		{
 			if (!_data)
 			{
@@ -52,6 +66,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		_width = other._width;
 		_height = other._height;
 		_channels = other._channels;
+		_element_size = other._element_size;
 
 		if (_data)
 		{
@@ -59,7 +74,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		}
 		_data = STBI_MALLOC(image_size);
 
-		memcpy(_data, other.data(), _width * _height * _channels);
+		memcpy(_data, other.data(), image_size);
 		return *this;
 	}
 
@@ -68,11 +83,13 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		_width = other._width;
 		_height = other._height;
 		_channels = other._channels;
+		_element_size = other._element_size;
 		_data = other._data;
 
 		other._width = 0;
 		other._height = 0;
 		other._channels = 0;
+		other._element_size = 1;
 		other._data = nullptr;
 	}
 
@@ -86,11 +103,13 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		_width = other._width;
 		_height = other._height;
 		_channels = other._channels;
+		_element_size = other._element_size;
 		_data = other._data;
 
 		other._width = 0;
 		other._height = 0;
 		other._channels = 0;
+		other._element_size = 1;
 		other._data = nullptr;
 
 		return *this;
@@ -119,6 +138,7 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 			return false;
 		}
 
+		_element_size = 1;
 		return true;
 	}
 
@@ -149,6 +169,11 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		return _channels;
 	}
 
+	int ImageS::elementSize() const
+	{
+		return _element_size;
+	}
+
 	const void* ImageS::data() const
 	{
 		return _data;
@@ -170,8 +195,9 @@ namespace lux::communication::builtin_msgs
 
 	template<> LUX_COMMUNICATION_PUBLIC void pb_st_converter::pb2st(const PBImage& in, STImage& out)
 	{
-		size_t image_size = in.height() * in.width() * in.channels();
-		if (out.width() == in.width() && out.height() == in.height() && out.channels() == in.channels())
+		int es = in.element_size() > 0 ? in.element_size() : 1;
+		size_t image_size = (size_t)in.height() * in.width() * in.channels() * es;
+		if (out.width() == in.width() && out.height() == in.height() && out.channels() == in.channels() && out.elementSize() == es)
 		{
 			if (!out._data)
 			{
@@ -183,6 +209,7 @@ namespace lux::communication::builtin_msgs
 		out._width = in.width();
 		out._height = in.height();
 		out._channels = in.channels();
+		out._element_size = es;
 
 		if (out._data)
 		{
@@ -195,8 +222,8 @@ namespace lux::communication::builtin_msgs
 
 	template<> LUX_COMMUNICATION_PUBLIC  void pb_st_converter::st2pb(const STImage& in, PBImage& out)
 	{
-		size_t image_size = in.height() * in.width() * in.channels();
-		if (out.width() == in.width() && out.height() == in.height() && out.channels() == in.channels())
+		size_t image_size = (size_t)in.height() * in.width() * in.channels() * in.elementSize();
+		if (out.width() == in.width() && out.height() == in.height() && out.channels() == in.channels() && out.element_size() == in.elementSize())
 		{
 			memcpy(out.mutable_data()->data(), in._data, image_size);
 			return;
@@ -204,6 +231,7 @@ namespace lux::communication::builtin_msgs
 		out.set_width(in._width);
 		out.set_height(in._height);
 		out.set_channels(in._channels);
+		out.set_element_size(in._element_size);
 		out.mutable_data()->resize(image_size);
 
 		memcpy(out.mutable_data()->data(), in._data, image_size);

@@ -3,9 +3,12 @@ syntax = "proto3";
 package lux.communication.builtin_msgs.sensor_msgs;
 
 message Image {
-    optional int32 width     = 1;
-    optional int32 height    = 2;
-    optional int32 channels  = 3;
-    optional int32 type      = 4;
-    optional bytes data      = 5;
+    optional int32 width        = 1;
+    optional int32 height       = 2;
+    optional int32 channels     = 3;
+    optional int32 type         = 4;
+    optional bytes data         = 5;
+    // bytes per channel element (1=8U default, 2=16U e.g. Z16 depth, 4=32F).
+    // unset/0 == 1 for backward compatibility with 8-bit producers.
+    optional int32 element_size = 6;
 }
