@@ -16,6 +16,8 @@
 // ── Spin-loop pause hint (saves power / avoids pipeline stall) ──
 #if defined(_MSC_VER)
 #  include <intrin.h>
+#elif defined(__x86_64__) || defined(__i386__)
+#  include <immintrin.h>   // _mm_pause on GCC/Clang (MSVC gets it via <intrin.h>)
 #endif
 
 namespace lux::communication {
