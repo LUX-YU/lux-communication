@@ -5,8 +5,93 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <fstream>
+#include <iterator>
+#include <vector>
+
+// libjpeg-turbo is optional (LUX_HAVE_LIBJPEG defined by CMake when found). When absent, the
+// JPEG path falls back to the bundled stb_image decoder below.
+#ifdef LUX_HAVE_LIBJPEG
+#include <jpeglib.h>
+#include <csetjmp>
+#include <cstdio>
+#endif
+
 namespace lux::communication::builtin_msgs::sensor_msgs
 {
+	namespace
+	{
+		// Read a whole file into memory (one IO; shared by magic sniffing +
+		// libjpeg/stb from-memory decode).
+		std::vector<unsigned char> readAllBytes(const char* path)
+		{
+			std::ifstream f(path, std::ios::binary);
+			return std::vector<unsigned char>((std::istreambuf_iterator<char>(f)),
+											   std::istreambuf_iterator<char>());
+		}
+
+#ifdef LUX_HAVE_LIBJPEG
+		// libjpeg errors return via setjmp instead of the default exit().
+		struct JpegErrMgr { jpeg_error_mgr pub; std::jmp_buf jmp; };
+		void jpegErrorExit(j_common_ptr cinfo)
+		{
+			std::longjmp(reinterpret_cast<JpegErrMgr*>(cinfo->err)->jmp, 1);
+		}
+
+		// Decode a JPEG with libjpeg-turbo into a STBI_MALLOC buffer (grayscale JPEG->1ch,
+		// color->3ch RGB, matching stbi_load(...,0)'s native-channel behavior).
+		// Key settings = OpenCV cv::imread defaults (JDCT_ISLOW exact IDCT + fancy upsampling
+		// + JCS_RGB) -> bit-identical to cv::imread (measured 0 diff). Returns nullptr on failure.
+		// The buffer is STBI_MALLOC'd so the existing stbi_image_free in the destructor frees
+		// it correctly (same malloc/free family).
+		unsigned char* decodeJpegTurbo(const unsigned char* buf, size_t size,
+									   int* out_w, int* out_h, int* out_ch)
+		{
+			jpeg_decompress_struct cinfo{};
+			JpegErrMgr jerr{};
+			cinfo.err = jpeg_std_error(&jerr.pub);
+			jerr.pub.error_exit = jpegErrorExit;
+			if (setjmp(jerr.jmp)) { jpeg_destroy_decompress(&cinfo); return nullptr; }
+
+			jpeg_create_decompress(&cinfo);
+			jpeg_mem_src(&cinfo, buf, static_cast<unsigned long>(size));
+			jpeg_read_header(&cinfo, TRUE);
+
+			// Explicitly align with OpenCV defaults (also libjpeg's defaults; pinned here in
+			// case libjpeg changes its defaults):
+			cinfo.dct_method          = JDCT_ISLOW;   // exact integer IDCT
+			cinfo.do_fancy_upsampling = TRUE;         // high-quality chroma upsampling
+			const bool gray = (cinfo.jpeg_color_space == JCS_GRAYSCALE);
+			cinfo.out_color_space = gray ? JCS_GRAYSCALE : JCS_RGB;
+
+			jpeg_start_decompress(&cinfo);
+			const int width  = static_cast<int>(cinfo.output_width);
+			const int height = static_cast<int>(cinfo.output_height);
+			const int comps  = cinfo.output_components;   // 1 (gray) or 3 (RGB)
+			auto* out = static_cast<unsigned char*>(
+				STBI_MALLOC(static_cast<size_t>(width) * height * comps));
+			if (!out) { jpeg_destroy_decompress(&cinfo); return nullptr; }
+
+			const int stride = width * comps;
+			while (cinfo.output_scanline < cinfo.output_height)
+			{
+				unsigned char* row = out + static_cast<size_t>(cinfo.output_scanline) * stride;
+				jpeg_read_scanlines(&cinfo, &row, 1);
+			}
+			jpeg_finish_decompress(&cinfo);
+			jpeg_destroy_decompress(&cinfo);
+
+			*out_w = width; *out_h = height; *out_ch = comps;
+			return out;   // RGB (or grayscale), STBI_MALLOC'd
+		}
+
+		inline bool isJpeg(const std::vector<unsigned char>& b)
+		{
+			return b.size() >= 2 && b[0] == 0xFF && b[1] == 0xD8;   // SOI marker
+		}
+#endif // LUX_HAVE_LIBJPEG
+	} // namespace
+
 	ImageS::ImageS(){}
 
 	ImageS::ImageS(const char* path)
@@ -120,16 +205,23 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		// already has data
 		if (_data) {
 			stbi_image_free(_data);
+			_data = nullptr;
 		}
 
-		_data = stbi_load(
-			path,
-			&_width,
-			&_height,
-			&_channels,
-			0
-		);
+		// Read once. When libjpeg is available, FF D8 -> libjpeg-turbo (bit-identical to
+		// cv::imread); otherwise everything (incl. JPEG) goes through stb.
+		std::vector<unsigned char> file = readAllBytes(path);
+#ifdef LUX_HAVE_LIBJPEG
+		if (isJpeg(file))
+		{
+			_data = decodeJpegTurbo(file.data(), file.size(), &_width, &_height, &_channels);
+			if (_data) { _element_size = 1; return true; }
+			// JPEG decode failed -> fall through to the stb fallback below.
+		}
+#endif
 
+		_data = stbi_load_from_memory(file.data(), static_cast<int>(file.size()),
+									  &_width, &_height, &_channels, 0);
 		if (!_data)
 		{
 			_width = 0;
@@ -139,6 +231,51 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		}
 
 		_element_size = 1;
+		return true;
+	}
+
+	bool ImageS::loadNative(const char* path)
+	{
+		// already has data
+		if (_data) {
+			stbi_image_free(_data);
+			_data = nullptr;
+		}
+
+		std::vector<unsigned char> file = readAllBytes(path);
+#ifdef LUX_HAVE_LIBJPEG
+		// JPEG is always 8-bit -> libjpeg-turbo (bit-identical to cv::imread) when available.
+		if (isJpeg(file))
+		{
+			_data = decodeJpegTurbo(file.data(), file.size(), &_width, &_height, &_channels);
+			if (_data) { _element_size = 1; return true; }
+			// JPEG decode failed -> fall through to the stb path below.
+		}
+#endif
+
+		// Preserve native bit depth: 16-bit PNGs stay 16-bit (byte-identical to old stbi_load_16).
+		if (stbi_is_16_bit_from_memory(file.data(), static_cast<int>(file.size())))
+		{
+			_data = stbi_load_16_from_memory(file.data(), static_cast<int>(file.size()),
+											 &_width, &_height, &_channels, 0);
+			_element_size = 2;
+		}
+		else
+		{
+			_data = stbi_load_from_memory(file.data(), static_cast<int>(file.size()),
+										  &_width, &_height, &_channels, 0);
+			_element_size = 1;
+		}
+
+		if (!_data)
+		{
+			_width = 0;
+			_height = 0;
+			_channels = 0;
+			_element_size = 1;
+			return false;
+		}
+
 		return true;
 	}
 

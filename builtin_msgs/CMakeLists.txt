@@ -1,14 +1,9 @@
-find_package(Stb QUIET)
+# stb_image is vendored under third_party/stb (bundled single-header — no external dependency,
+# always-available fallback decoder for JPEG/PNG/BMP/...).
+# libjpeg-turbo is OPTIONAL: when present, ImageS decodes JPEG with it (bit-identical to OpenCV
+# cv::imread); otherwise JPEG falls back to the bundled stb_image decoder.
+find_package(JPEG QUIET)
 find_package(Eigen3 CONFIG REQUIRED)
-if(NOT Stb_FOUND)
-    find_path(Stb_INCLUDE_DIR stb_image.h REQUIRED 
-        HINTS
-            /usr/include 
-            /usr/include/stb
-            /usr/local
-            /usr/local/include/stb
-    )
-endif()
 
 include_component_cmake_scripts(lux::communication::protobuf)
 
@@ -112,7 +107,7 @@ component_include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${LUX_GENERATE_HEADER_DIR}
     PRIVATE
-        ${Stb_INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
     INSTALL_TIME
         include
 )
@@ -148,6 +143,17 @@ component_add_transitive_commands(
     builtin_msgs
     "find_package(Eigen3 CONFIG REQUIRED)"
 )
+
+# Optional libjpeg-turbo: enable the high-fidelity JPEG path only when JPEG was found at
+# configure time. Absent -> ImageS silently uses the bundled stb_image JPEG decoder.
+if(JPEG_FOUND)
+    target_link_libraries(builtin_msgs PRIVATE JPEG::JPEG)
+    target_compile_definitions(builtin_msgs PRIVATE LUX_HAVE_LIBJPEG)
+    component_add_transitive_commands(builtin_msgs "find_package(JPEG REQUIRED)")
+    message(STATUS "builtin_msgs: libjpeg-turbo found -> ImageS uses libjpeg for JPEG (cv::imread-aligned)")
+else()
+    message(STATUS "builtin_msgs: libjpeg not found -> ImageS JPEG decode falls back to bundled stb_image")
+endif()
 
 set(ENABLE_BUILTIN_MSGS_TEST ON CACHE BOOL "Enable builtin message test")
 if(ENABLE_BUILTIN_MSGS_TEST)

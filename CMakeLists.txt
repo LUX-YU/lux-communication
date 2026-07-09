@@ -34,3 +34,21 @@ install_components(
                     builtin_msgs
                     node
 )
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Packaging (CPack). Configure with -DCMAKE_INSTALL_PREFIX=/usr, then `cpack -G DEB`.
+# DEB_DEPENDS lists the consumer-visible deps that SHLIBDEPS can't infer: lux-cxx
+# and the transitive/public build deps (concurrentqueue is header-only + PUBLIC on
+# node; the -dev packages are needed to compile against the installed headers).
+# stduuid is PRIVATE (compiled into node), so it is a CI build-dep only — not here.
+# ──────────────────────────────────────────────────────────────────────────────
+lux_configure_packaging(
+    NAME     lux-communication
+    VERSION  0.0.1
+    SUMMARY  "ROS2-like communication library for the LUX project"
+    VENDOR   "LUX-YU"
+    CONTACT  "LUX-YU <chenhui.lux.yu@outlook.com>"
+    HOMEPAGE "https://github.com/LUX-YU/lux-communication"
+    DEB_DEPENDS  "lux-cxx (>= 0.0.2)" "concurrentqueue" "libeigen3-dev" "libjpeg-dev" "libprotobuf-dev"
+    RPM_REQUIRES "lux-cxx >= 0.0.2" "concurrentqueue" "eigen3-devel" "libjpeg-devel" "protobuf-devel"
+)

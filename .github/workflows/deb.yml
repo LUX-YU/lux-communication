@@ -1,0 +1,80 @@
+name: deb
+
+# Builds the lux-communication .deb natively for amd64 and arm64. Its upstream LUX
+# deps (lux-cmake-toolset, lux-cxx) and the non-distro header-only deps
+# (concurrentqueue, stduuid) are pulled from the LUX apt repo — so lux-apt's publish
+# workflow must have run at least once (with lux-cxx released) before this succeeds.
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # attach .deb assets to the tag's GitHub Release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-22.04,     arch: amd64 }
+          - { runner: ubuntu-22.04-arm, arch: arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: lux-communication
+
+      - name: Add LUX apt repo
+        run: |
+          sudo install -d /etc/apt/keyrings
+          curl -fsSL https://lux-yu.github.io/lux-apt/lux-archive-keyring.asc \
+            | sudo tee /etc/apt/keyrings/lux.asc >/dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/lux.asc] https://lux-yu.github.io/lux-apt jammy main" \
+            | sudo tee /etc/apt/sources.list.d/lux.list
+
+      - name: Install deps
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          cmake ninja-build g++ dpkg-dev git
+          libeigen3-dev libjpeg-dev libprotobuf-dev protobuf-compiler
+          lux-cmake-toolset lux-cxx concurrentqueue stduuid
+
+      - name: Derive version from tag
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "extra=-DCPACK_PACKAGE_VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S lux-communication -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=/usr
+          -DENABLE_BUILTIN_MSGS_TEST=OFF
+          -DENABLE_NODE_TEST=OFF
+          ${{ steps.ver.outputs.extra }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Package
+        run: cd build && cpack -G DEB --verbose
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lux-communication-deb-${{ matrix.arch }}
+          path: build/*.deb
+          if-no-files-found: error
+
+      - name: Attach .deb to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" --title "$TAG" --notes "Automated .deb build." 2>/dev/null || true
+          gh release upload "$TAG" build/*.deb --clobber

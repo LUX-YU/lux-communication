@@ -25,6 +25,9 @@ namespace lux::communication::builtin_msgs::sensor_msgs
 		~ImageS();
 
 		bool load(const char* path);
+		// Load preserving native bit depth: 16-bit PNGs stay 16-bit (elementSize()==2),
+		// everything else loads as 8-bit (elementSize()==1). Zero-copy: adopts the stb buffer.
+		bool loadNative(const char* path);
 		bool isLoaded() const;
 
 		int width() const;
