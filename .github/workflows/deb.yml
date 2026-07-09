@@ -78,3 +78,26 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "Automated .deb build." 2>/dev/null || true
           gh release upload "$TAG" build/*.deb --repo "$GITHUB_REPOSITORY" --clobber
+
+  # After both arch builds finish and their .debs are attached to the Release,
+  # ping lux-apt to rebuild + republish the apt repo. Needs a token with write
+  # access to LUX-YU/lux-apt in secret LUX_APT_DISPATCH_TOKEN; skips cleanly if
+  # absent (then just run lux-apt's publish manually).
+  notify-apt:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Trigger lux-apt publish
+        env:
+          DISPATCH_TOKEN: ${{ secrets.LUX_APT_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$DISPATCH_TOKEN" ]; then
+            echo "LUX_APT_DISPATCH_TOKEN not set — skipping auto-publish."; exit 0
+          fi
+          curl -sf -X POST \
+            -H "Authorization: Bearer $DISPATCH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/LUX-YU/lux-apt/dispatches \
+            -d '{"event_type":"publish"}'
+          echo "Triggered lux-apt publish."
