@@ -49,6 +49,6 @@ lux_configure_packaging(
     VENDOR   "LUX-YU"
     CONTACT  "LUX-YU <chenhui.lux.yu@outlook.com>"
     HOMEPAGE "https://github.com/LUX-YU/lux-communication"
-    DEB_DEPENDS  "lux-cxx (>= 0.0.2)" "concurrentqueue" "libeigen3-dev" "libjpeg-dev" "libprotobuf-dev"
-    RPM_REQUIRES "lux-cxx >= 0.0.2" "concurrentqueue" "eigen3-devel" "libjpeg-devel" "protobuf-devel"
+    DEB_DEPENDS  "lux-cxx (>= 0.0.2)" "concurrentqueue" "libeigen3-dev" "libjpeg-dev" "libprotobuf-dev" "libprotoc-dev"
+    RPM_REQUIRES "lux-cxx >= 0.0.2" "concurrentqueue" "eigen3-devel" "libjpeg-devel" "protobuf-devel" "protobuf-compiler"
 )

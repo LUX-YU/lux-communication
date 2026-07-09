@@ -39,7 +39,7 @@ jobs:
         run: >
           sudo apt-get update && sudo apt-get install -y
           cmake ninja-build g++ dpkg-dev git
-          libeigen3-dev libjpeg-dev libprotobuf-dev protobuf-compiler
+          libeigen3-dev libjpeg-dev libprotobuf-dev libprotoc-dev protobuf-compiler
           lux-cmake-toolset lux-cxx concurrentqueue stduuid
 
       - name: Derive version from tag
