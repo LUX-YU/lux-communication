@@ -76,5 +76,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          gh release create "$TAG" --title "$TAG" --notes "Automated .deb build." 2>/dev/null || true
-          gh release upload "$TAG" build/*.deb --clobber
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "Automated .deb build." 2>/dev/null || true
+          gh release upload "$TAG" build/*.deb --repo "$GITHUB_REPOSITORY" --clobber
